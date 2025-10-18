@@ -12,7 +12,6 @@ export function Translator() {
   const [inputText, setInputText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   
