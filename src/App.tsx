@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
+import { Dashboard } from './components/Dashboard';
 import { Translator } from './components/Translator';
 import { VocabularyList } from './components/VocabularyList';
 import { ReviewSession } from './components/ReviewSession';
@@ -14,7 +15,8 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<Translator />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/translator" element={<Translator />} />
             <Route path="/vocabulary" element={<VocabularyList />} />
             <Route path="/practice" element={<ReviewSession />} />
             <Route path="/categories" element={<Categories />} />

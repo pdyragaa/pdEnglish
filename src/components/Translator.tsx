@@ -107,85 +107,123 @@ export function Translator() {
 
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Translator</CardTitle>
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center space-x-2">
+          <Languages className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold text-foreground">Smart Translator</h1>
+        </div>
+        <p className="text-lg text-muted-foreground">
+          Translate Polish words to English and automatically save them to your vocabulary
+        </p>
+      </div>
+
+      <Card className="shadow-xl border-2 border-primary/10">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-2xl text-center">Translation Tool</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-8">
           {/* Language Toggle */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 text-center">
+          <div className="space-y-4">
+            <label className="block text-lg font-semibold text-foreground text-center">
               Translation Direction
             </label>
-            <div className="flex items-center justify-center space-x-4">
-              <div className={`px-4 py-2 rounded-md font-medium ${selectedLanguage === 'pl' ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' : 'bg-gray-100 text-gray-500'}`}>
-                PL → EN
+            <div className="flex items-center justify-center space-x-6">
+              <div className={`px-6 py-3 rounded-xl font-semibold text-lg transition-all duration-200 ${
+                selectedLanguage === 'pl' 
+                  ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}>
+                🇵🇱 PL → EN
               </div>
               <Button
                 variant="outline"
-                size="sm"
+                size="lg"
                 onClick={toggleLanguage}
                 disabled={isTranslating}
+                className="rounded-full w-12 h-12 hover:scale-110 transition-transform duration-200"
               >
-                <ArrowRightLeft className="h-4 w-4" />
+                <ArrowRightLeft className="h-5 w-5" />
               </Button>
-              <div className={`px-4 py-2 rounded-md font-medium ${selectedLanguage === 'en' ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' : 'bg-gray-100 text-gray-500'}`}>
-                EN → PL
+              <div className={`px-6 py-3 rounded-xl font-semibold text-lg transition-all duration-200 ${
+                selectedLanguage === 'en' 
+                  ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}>
+                🇬🇧 EN → PL
               </div>
             </div>
           </div>
 
           {/* Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {selectedLanguage === 'en' ? 'English' : 'Polish'} Text
+          <div className="space-y-4">
+            <label className="block text-lg font-semibold text-foreground">
+              {selectedLanguage === 'en' ? 'English Text' : 'Polish Text'}
             </label>
-            <Input
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={selectedLanguage === 'en' ? 'Enter English text (e.g., "hello")...' : 'Wpisz polski tekst (np. "cześć")...'}
-              disabled={isTranslating}
-              onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
-            />
+            <div className="relative">
+              <Input
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={selectedLanguage === 'en' ? 'Enter English text (e.g., "hello")...' : 'Wpisz polski tekst (np. "cześć")...'}
+                disabled={isTranslating}
+                onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
+                className="text-lg py-4 px-6 rounded-xl border-2 focus:border-primary transition-colors duration-200"
+              />
+              {inputText && (
+                <button
+                  onClick={() => setInputText('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Translate Button */}
           <Button
             onClick={handleTranslate}
             disabled={!inputText.trim() || isTranslating}
-            className="w-full"
+            size="lg"
+            className="w-full py-4 text-lg font-semibold rounded-xl hover:scale-105 transition-transform duration-200"
           >
             {isTranslating ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-5 w-5 mr-3 animate-spin" />
                 Translating...
               </>
             ) : (
-              'Translate'
+              <>
+                <Languages className="h-5 w-5 mr-3" />
+                Translate Now
+              </>
             )}
           </Button>
 
           {/* Translation Result */}
           {translatedText && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {selectedLanguage === 'en' ? 'Polish' : 'English'} Translation
+            <div className="space-y-4">
+              <label className="block text-lg font-semibold text-foreground">
+                {selectedLanguage === 'en' ? 'Polish Translation' : 'English Translation'}
               </label>
-              <div className="p-3 bg-gray-50 rounded-md border">
-                <p className="text-gray-900">{translatedText}</p>
+              <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-xl">
+                <p className="text-2xl font-semibold text-foreground text-center">{translatedText}</p>
               </div>
             </div>
           )}
 
           {/* Save Message */}
           {saveMessage && (
-            <div className={`p-3 rounded-md text-sm ${
+            <div className={`p-4 rounded-xl text-center font-medium ${
               saveMessage.includes('Saved') 
-                ? 'bg-green-100 text-green-700 border border-green-200' 
-                : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                ? 'bg-green-100 text-green-800 border-2 border-green-200' 
+                : 'bg-yellow-100 text-yellow-800 border-2 border-yellow-200'
             }`}>
-              {saveMessage}
+              <div className="flex items-center justify-center space-x-2">
+                {saveMessage.includes('Saved') ? '✅' : '⚠️'}
+                <span>{saveMessage}</span>
+              </div>
             </div>
           )}
         </CardContent>
