@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -13,21 +13,30 @@ export function Translator() {
   const [translatedText, setTranslatedText] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [defaultCategoryId, setDefaultCategoryId] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   
   const { selectedLanguage, setSelectedLanguage, setError } = useVocabularyStore();
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
 
   React.useEffect(() => {
-    loadCategories();
+    ensureDefaultCategory();
   }, []);
 
-  const loadCategories = async () => {
+  const ensureDefaultCategory = async () => {
     try {
-      const cats = await db.categories.getAll();
-      setCategories(cats);
+      // Check if "General" category exists
+      const categories = await db.categories.getAll();
+      let generalCategory = categories.find(cat => cat.name === 'General');
+      
+      // If not, create it
+      if (!generalCategory) {
+        generalCategory = await db.categories.create('General');
+      }
+      
+      setDefaultCategoryId(generalCategory.id);
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      console.error('Failed to ensure default category:', error);
+      setError('Failed to setup default category');
     }
   };
 
@@ -36,6 +45,7 @@ export function Translator() {
 
     setIsTranslating(true);
     setError(null);
+    setSaveMessage(null);
 
     try {
       const result = selectedLanguage === 'en' 
@@ -43,6 +53,9 @@ export function Translator() {
         : await translatePolishToEnglish(inputText);
       
       setTranslatedText(result);
+      
+      // Auto-save to vocabulary
+      await autoSaveToVocabulary(inputText, result);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Translation failed');
     } finally {
@@ -50,31 +63,40 @@ export function Translator() {
     }
   };
 
-  const handleSave = async () => {
-    if (!inputText.trim() || !translatedText.trim() || !selectedCategoryId) return;
-
-    setIsSaving(true);
-    setError(null);
+  const autoSaveToVocabulary = async (originalText: string, translatedText: string) => {
+    if (!defaultCategoryId) return;
 
     try {
+      // Check if vocabulary already exists
+      const existingVocabulary = await db.vocabulary.getAll();
+      const alreadyExists = existingVocabulary.some(vocab => 
+        (vocab.polish === originalText && vocab.english === translatedText) ||
+        (vocab.polish === translatedText && vocab.english === originalText)
+      );
+
+      if (alreadyExists) {
+        setSaveMessage('Word already exists in vocabulary');
+        return;
+      }
+
+      // Save to vocabulary
       const vocabulary = {
-        polish: selectedLanguage === 'en' ? translatedText : inputText,
-        english: selectedLanguage === 'en' ? inputText : translatedText,
-        category_id: selectedCategoryId
+        polish: selectedLanguage === 'en' ? translatedText : originalText,
+        english: selectedLanguage === 'en' ? originalText : translatedText,
+        category_id: defaultCategoryId
       };
 
       await db.vocabulary.create(vocabulary);
+      setSaveMessage('Saved to vocabulary automatically!');
       
-      // Clear the form
-      setInputText('');
-      setTranslatedText('');
-      setSelectedCategoryId(null);
+      // Clear message after 3 seconds
+      setTimeout(() => setSaveMessage(null), 3000);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save vocabulary');
-    } finally {
-      setIsSaving(false);
+      console.error('Failed to auto-save vocabulary:', error);
+      setSaveMessage('Failed to save to vocabulary');
     }
   };
+
 
   const toggleLanguage = () => {
     setSelectedLanguage(selectedLanguage === 'en' ? 'pl' : 'en');
@@ -84,7 +106,6 @@ export function Translator() {
     setTranslatedText(temp);
   };
 
-  const canSave = inputText.trim() && translatedText.trim() && selectedCategoryId;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -153,47 +174,15 @@ export function Translator() {
             </div>
           )}
 
-          {/* Category Selection */}
-          {translatedText && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Save to Category
-              </label>
-              <select
-                value={selectedCategoryId || ''}
-                onChange={(e) => setSelectedCategoryId(e.target.value || null)}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a category...</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+          {/* Save Message */}
+          {saveMessage && (
+            <div className={`p-3 rounded-md text-sm ${
+              saveMessage.includes('Saved') 
+                ? 'bg-green-100 text-green-700 border border-green-200' 
+                : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+            }`}>
+              {saveMessage}
             </div>
-          )}
-
-          {/* Save Button */}
-          {canSave && (
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              variant="secondary"
-              className="w-full"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save to Vocabulary
-                </>
-              )}
-            </Button>
           )}
         </CardContent>
       </Card>
