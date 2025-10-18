@@ -1,7 +1,5 @@
 import type { TranslationResponse } from '../types';
 
-const LIBRETRANSLATE_URL = import.meta.env.VITE_LIBRETRANSLATE_URL || 'https://libretranslate.com';
-
 export async function translateText(text: string, source: 'pl' | 'en', target: 'pl' | 'en'): Promise<string> {
   if (!text.trim()) {
     throw new Error('Text cannot be empty');
@@ -12,25 +10,23 @@ export async function translateText(text: string, source: 'pl' | 'en', target: '
   }
 
   try {
-    const response = await fetch(`${LIBRETRANSLATE_URL}/translate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        q: text,
-        source: source,
-        target: target,
-        format: 'text'
-      })
-    });
+    const encodedText = encodeURIComponent(text);
+    const langPair = `${source}|${target}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${langPair}`;
+    
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`Translation failed: ${response.status} ${response.statusText}`);
     }
 
     const data: TranslationResponse = await response.json();
-    return data.translatedText;
+    
+    if (data.responseStatus !== 200) {
+      throw new Error(`Translation error: ${data.responseDetails || 'Unknown error'}`);
+    }
+
+    return data.responseData.translatedText;
   } catch (error) {
     console.error('Translation error:', error);
     throw new Error(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -39,7 +39,12 @@ export interface TranslationRequest {
 }
 
 export interface TranslationResponse {
-  translatedText: string;
+  responseData: {
+    translatedText: string;
+    match: number;
+  };
+  responseStatus: number;
+  responseDetails?: string;
 }
 
 export interface DeepSeekResponse {
