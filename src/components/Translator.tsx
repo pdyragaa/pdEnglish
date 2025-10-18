@@ -1,13 +1,25 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRightLeft, Loader2, Languages, Sparkles } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  Fade,
+  Grid,
+  Paper,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
+import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
+import TranslateRoundedIcon from '@mui/icons-material/TranslateRounded';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import { translatePolishToEnglish, translateEnglishToPolish } from '../lib/translate';
 import { db } from '../lib/supabase';
 import { useVocabularyStore } from '../store/useVocabularyStore';
-// import type { Language } from '../types';
 
 export function Translator() {
   const [inputText, setInputText] = useState('');
@@ -15,31 +27,57 @@ export function Translator() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  
-  const { selectedLanguage, setSelectedLanguage, setError } = useVocabularyStore();
+  const [copied, setCopied] = useState(false);
 
-  React.useEffect(() => {
-    ensureDefaultCategory();
-  }, []);
+  const { selectedLanguage, setSelectedLanguage, setError, error } = useVocabularyStore();
 
-  const ensureDefaultCategory = async () => {
-    try {
-      // Check if "General" category exists
-      const categories = await db.categories.getAll();
-      let generalCategory = categories.find(cat => cat.name === 'General');
-      
-      // If not, create it
-      if (!generalCategory) {
-        generalCategory = await db.categories.create('General');
+  useEffect(() => {
+    const ensureDefaultCategory = async () => {
+      try {
+        const categories = await db.categories.getAll();
+        let generalCategory = categories.find((cat) => cat.name === 'General');
+        if (!generalCategory) {
+          generalCategory = await db.categories.create('General');
+        }
+        setDefaultCategoryId(generalCategory.id);
+      } catch (err) {
+        console.error('Failed to ensure default category', err);
+        setError('Failed to prepare default category');
       }
-      
-      setDefaultCategoryId(generalCategory.id);
-    } catch (error) {
-      console.error('Failed to ensure default category:', error);
-      setError('Failed to setup default category');
+    };
+
+    void ensureDefaultCategory();
+  }, [setError]);
+
+  const directionLabel = useMemo(() => (selectedLanguage === 'pl' ? 'Polish → English' : 'English → Polish'), [selectedLanguage]);
+
+  const handleDirectionChange = (_: React.MouseEvent<HTMLElement>, value: 'pl' | 'en' | null) => {
+    if (!value || value === selectedLanguage) return;
+    setSelectedLanguage(value);
+    // Swap fields for convenience
+    setInputText(translatedText);
+    setTranslatedText('');
+    setSaveMessage(null);
+    setError(null);
+  };
+
+  const handleCopy = async () => {
+    if (!translatedText) return;
+    try {
+      await navigator.clipboard.writeText(translatedText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (copyErr) {
+      console.warn(copyErr);
     }
   };
 
+  const handleClear = () => {
+    setInputText('');
+    setTranslatedText('');
+    setSaveMessage(null);
+    setError(null);
+  };
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
@@ -49,30 +87,33 @@ export function Translator() {
     setSaveMessage(null);
 
     try {
-      const result = selectedLanguage === 'en' 
-        ? await translateEnglishToPolish(inputText)
-        : await translatePolishToEnglish(inputText);
-      
+      const result =
+        selectedLanguage === 'en'
+          ? await translateEnglishToPolish(inputText)
+          : await translatePolishToEnglish(inputText);
+
       setTranslatedText(result);
-      
-      // Auto-save to vocabulary
       await autoSaveToVocabulary(inputText, result);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Translation failed');
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Translation failed');
+      }
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const autoSaveToVocabulary = async (originalText: string, translatedText: string) => {
+  const autoSaveToVocabulary = async (originalText: string, translation: string) => {
     if (!defaultCategoryId) return;
 
     try {
-      // Check if vocabulary already exists
       const existingVocabulary = await db.vocabulary.getAll();
-      const alreadyExists = existingVocabulary.some(vocab => 
-        (vocab.polish === originalText && vocab.english === translatedText) ||
-        (vocab.polish === translatedText && vocab.english === originalText)
+      const alreadyExists = existingVocabulary.some(
+        (vocab) =>
+          (vocab.polish === originalText && vocab.english === translation) ||
+          (vocab.polish === translation && vocab.english === originalText)
       );
 
       if (alreadyExists) {
@@ -80,173 +121,184 @@ export function Translator() {
         return;
       }
 
-      // Save to vocabulary
       const vocabulary = {
-        polish: selectedLanguage === 'en' ? translatedText : originalText,
-        english: selectedLanguage === 'en' ? originalText : translatedText,
-        category_id: defaultCategoryId
+        polish: selectedLanguage === 'en' ? translation : originalText,
+        english: selectedLanguage === 'en' ? originalText : translation,
+        category_id: defaultCategoryId,
       };
 
       await db.vocabulary.create(vocabulary);
       setSaveMessage('Saved to vocabulary automatically!');
-      
-      // Clear message after 3 seconds
-      setTimeout(() => setSaveMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to auto-save vocabulary:', error);
+      setTimeout(() => setSaveMessage(null), 2500);
+    } catch (err) {
+      console.error('Failed to auto-save vocabulary:', err);
       setSaveMessage('Failed to save to vocabulary');
     }
   };
 
-
-  const toggleLanguage = () => {
-    setSelectedLanguage(selectedLanguage === 'en' ? 'pl' : 'en');
-    // Swap the texts when switching languages
-    const temp = inputText;
-    setInputText(translatedText);
-    setTranslatedText(temp);
-  };
-
-
   return (
-    <motion.div 
-      className="max-w-6xl mx-auto space-y-8"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Hero Section */}
-      <motion.div 
-        className="text-center space-y-6 py-12 px-6 rounded-3xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-      >
-        <div className="flex items-center justify-center space-x-3 mb-4">
-          <motion.div
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-          >
-            <Sparkles className="w-10 h-10 text-primary" />
-          </motion.div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-            Smart Translator
-          </h1>
-        </div>
-        <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-          Translate Polish to English and vice versa with AI-powered accuracy. Every translation is automatically saved to your vocabulary.
-        </p>
-      </motion.div>
-
-      <Card className="shadow-xl border-2 border-primary/10">
-        <CardHeader className="pb-6">
-          <CardTitle className="text-2xl text-center">Translation Tool</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {/* Language Toggle */}
-          <div className="space-y-4">
-            <label className="block text-lg font-semibold text-foreground text-center">
-              Translation Direction
-            </label>
-            <div className="flex items-center justify-center space-x-6">
-              <div className={`px-6 py-3 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                selectedLanguage === 'pl' 
-                  ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}>
-                🇵🇱 PL → EN
-              </div>
+    <Fade in timeout={500}>
+      <Stack spacing={6}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 4, md: 6 },
+            borderRadius: 4,
+            border: '1px solid rgba(255,255,255,0.08)',
+            background:
+              'linear-gradient(140deg, rgba(63,214,193,0.16) 0%, rgba(63,214,193,0.05) 50%, rgba(20,24,32,0.85) 100%)',
+          }}
+        >
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <AutoAwesomeRoundedIcon sx={{ color: 'primary.light' }} />
+              <Typography variant="caption" color="primary.light" fontWeight={600}>
+                AI assisted translation
+              </Typography>
+            </Stack>
+            <Typography variant="h3" fontWeight={700}>
+              Translate, store and remember effortlessly.
+            </Typography>
+            <Typography variant="body1" color="text.secondary" maxWidth={600}>
+              Automatic saving keeps your vocabulary collection in sync. Switch direction anytime and reuse existing translations instantly.
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <Button
-                variant="outline"
-                size="lg"
-                onClick={toggleLanguage}
-                disabled={isTranslating}
-                className="rounded-full w-12 h-12 hover:scale-110 transition-transform duration-200"
+                variant="contained"
+                startIcon={<TranslateRoundedIcon />}
+                onClick={handleTranslate}
+                disabled={isTranslating || !inputText.trim()}
               >
-                <ArrowRightLeft className="h-5 w-5" />
+                {isTranslating ? 'Translating…' : 'Translate current text'}
               </Button>
-              <div className={`px-6 py-3 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                selectedLanguage === 'en' 
-                  ? 'bg-primary text-primary-foreground shadow-lg scale-105' 
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}>
-                🇬🇧 EN → PL
-              </div>
-            </div>
-          </div>
+              <Button variant="outlined" onClick={handleClear} disabled={!inputText}>
+                Clear input
+              </Button>
+            </Stack>
+          </Stack>
+        </Paper>
 
-          {/* Input */}
-          <div className="space-y-4">
-            <label className="block text-lg font-semibold text-foreground">
-              {selectedLanguage === 'en' ? 'English Text' : 'Polish Text'}
-            </label>
-            <div className="relative">
-              <Input
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={selectedLanguage === 'en' ? 'Enter English text (e.g., "hello")...' : 'Wpisz polski tekst (np. "cześć")...'}
-                disabled={isTranslating}
-                onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
-                className="text-lg py-4 px-6 rounded-xl border-2 focus:border-primary transition-colors duration-200"
-              />
-              {inputText && (
-                <button
-                  onClick={() => setInputText('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 4, borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <Stack spacing={3}>
+                <Stack spacing={1}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Translation direction
+                  </Typography>
+                  <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary">
+                    <ToggleButton value="pl">🇵🇱 Polish → English</ToggleButton>
+                    <ToggleButton value="en">🇬🇧 English → Polish</ToggleButton>
+                  </ToggleButtonGroup>
+                  <Typography variant="caption" color="text.secondary">
+                    {directionLabel}
+                  </Typography>
+                </Stack>
 
-          {/* Translate Button */}
-          <Button
-            onClick={handleTranslate}
-            disabled={!inputText.trim() || isTranslating}
-            size="lg"
-            className="w-full py-4 text-lg font-semibold rounded-xl hover:scale-105 transition-transform duration-200"
-          >
-            {isTranslating ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-3 animate-spin" />
-                Translating...
-              </>
-            ) : (
-              <>
-                <Languages className="h-5 w-5 mr-3" />
-                Translate Now
-              </>
+                <Stack spacing={1.5}>
+                  <TextField
+                    label={selectedLanguage === 'pl' ? 'Polish text' : 'English text'}
+                    placeholder={selectedLanguage === 'pl' ? 'Wpisz polskie zdanie…' : 'Enter English sentence…'}
+                    value={inputText}
+                    onChange={(event) => setInputText(event.target.value)}
+                    multiline
+                    minRows={6}
+                    maxRows={8}
+                    fullWidth
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {inputText.length} / 500 characters
+                  </Typography>
+                </Stack>
+
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleTranslate}
+                    disabled={!inputText.trim() || isTranslating}
+                    startIcon={<SwapHorizRoundedIcon />}
+                  >
+                    {isTranslating ? 'Translating…' : 'Translate now'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={handleCopy}
+                    disabled={!translatedText}
+                    startIcon={<ContentCopyRoundedIcon fontSize="small" />}
+                  >
+                    {copied ? 'Copied!' : 'Copy translation'}
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+
+            {saveMessage && (
+              <Alert severity={saveMessage.includes('Saved') ? 'success' : 'warning'} sx={{ mt: 2 }}>
+                {saveMessage}
+              </Alert>
             )}
-          </Button>
 
-          {/* Translation Result */}
-          {translatedText && (
-            <div className="space-y-4">
-              <label className="block text-lg font-semibold text-foreground">
-                {selectedLanguage === 'en' ? 'Polish Translation' : 'English Translation'}
-              </label>
-              <div className="p-6 bg-primary/5 border-2 border-primary/20 rounded-xl">
-                <p className="text-2xl font-semibold text-foreground text-center">{translatedText}</p>
-              </div>
-            </div>
-          )}
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </Grid>
 
-          {/* Save Message */}
-          {saveMessage && (
-            <div className={`p-4 rounded-xl text-center font-medium ${
-              saveMessage.includes('Saved') 
-                ? 'bg-green-100 text-green-800 border-2 border-green-200' 
-                : 'bg-yellow-100 text-yellow-800 border-2 border-yellow-200'
-            }`}>
-              <div className="flex items-center justify-center space-x-2">
-                {saveMessage.includes('Saved') ? '✅' : '⚠️'}
-                <span>{saveMessage}</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </motion.div>
+          <Grid item xs={12} md={6}>
+            <Paper
+              sx={{
+                p: 4,
+                borderRadius: 4,
+                border: '1px solid rgba(255,255,255,0.06)',
+                minHeight: 320,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="subtitle2" color="text.secondary">
+                  {selectedLanguage === 'pl' ? 'English translation' : 'Polish translation'}
+                </Typography>
+              </Stack>
+
+              <Box flexGrow={1} display="flex" alignItems="center" justifyContent="center">
+                {translatedText ? (
+                  <Fade in timeout={300}>
+                    <Typography variant="h4" fontWeight={600} textAlign="center">
+                      {translatedText}
+                    </Typography>
+                  </Fade>
+                ) : (
+                  <Stack spacing={1} alignItems="center" color="text.secondary">
+                    <TranslateRoundedIcon sx={{ fontSize: 40, opacity: 0.4 }} />
+                    <Typography variant="body2">Your translation will appear here.</Typography>
+                  </Stack>
+                )}
+              </Box>
+
+              <Divider />
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: translatedText ? 'success.main' : 'text.disabled',
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {translatedText ? 'Saved to vocabulary' : 'Awaiting translation'}
+                </Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Stack>
+    </Fade>
   );
 }

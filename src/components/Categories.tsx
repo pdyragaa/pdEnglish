@@ -1,169 +1,287 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, FolderOpen } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
+import FolderSpecialRoundedIcon from '@mui/icons-material/FolderSpecialRounded';
+import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+
 import { db } from '../lib/supabase';
 import type { Category } from '../types';
+
+const Container = styled(Box)({
+  borderRadius: 24,
+  border: '1px solid rgba(255,255,255,0.05)',
+  backgroundColor: 'rgba(20,24,32,0.75)',
+  overflow: 'hidden',
+});
+
+interface EditingState {
+  id: string;
+  name: string;
+  color: string;
+}
 
 export function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // const [isCreating] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
+  const [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState<EditingState | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    loadCategories();
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const cats = await db.categories.getAll();
+        setCategories(cats);
+      } catch (error) {
+        console.error(error);
+        setFeedback({ type: 'error', message: 'Failed to load categories.' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void load();
   }, []);
 
-  const loadCategories = async () => {
-    setIsLoading(true);
-    try {
-      const cats = await db.categories.getAll();
-      setCategories(cats);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const colorPalette = useMemo(
+    () => ['#3FD6C1', '#4C82FB', '#8E97A7', '#F2994A', '#56CCF2', '#9B51E0', '#6FCF97'],
+    []
+  );
 
   const handleCreate = async () => {
-    if (!newCategoryName.trim()) return;
-
+    if (!newName.trim()) return;
     try {
-      const category = await db.categories.create(newCategoryName.trim());
-      setCategories(prev => [category, ...prev]);
-      setNewCategoryName('');
+      const created = await db.categories.create(newName.trim());
+      setCategories((prev) => [created, ...prev]);
+      setNewName('');
+      setFeedback({ type: 'success', message: 'Category created.' });
     } catch (error) {
-      console.error('Failed to create category:', error);
-      alert('Failed to create category. Please try again.');
+      console.error(error);
+      setFeedback({ type: 'error', message: 'Failed to create category.' });
     }
   };
 
-  const handleEdit = (category: Category) => {
-    setEditingId(category.id);
-    setEditName(category.name);
+  const openEdit = (category: Category) => {
+    setEditing({ id: category.id, name: category.name, color: colorPalette[0] });
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingId || !editName.trim()) return;
-
+  const handleSave = async () => {
+    if (!editing?.name.trim()) return;
     try {
-      const updated = await db.categories.update(editingId, editName.trim());
-      setCategories(prev => 
-        prev.map(cat => cat.id === editingId ? updated : cat)
-      );
-      setEditingId(null);
-      setEditName('');
+      const updated = await db.categories.update(editing.id, editing.name.trim());
+      setCategories((prev) => prev.map((item) => (item.id === editing.id ? updated : item)));
+      setEditing(null);
+      setFeedback({ type: 'success', message: 'Category updated.' });
     } catch (error) {
-      console.error('Failed to update category:', error);
-      alert('Failed to update category. Please try again.');
+      console.error(error);
+      setFeedback({ type: 'error', message: 'Failed to update category.' });
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditName('');
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category? This will not delete vocabulary items, but they will no longer be categorized.')) return;
-
     try {
       await db.categories.delete(id);
-      setCategories(prev => prev.filter(cat => cat.id !== id));
+      setCategories((prev) => prev.filter((item) => item.id !== id));
+      setConfirmDelete(null);
+      setFeedback({ type: 'success', message: 'Category removed.' });
     } catch (error) {
-      console.error('Failed to delete category:', error);
-      alert('Failed to delete category. Please try again.');
+      console.error(error);
+      setFeedback({ type: 'error', message: 'Failed to delete category.' });
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">Loading categories...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Categories</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Create New Category */}
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Category name..."
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
-            <Button onClick={handleCreate} disabled={!newCategoryName.trim()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Category
-            </Button>
-          </div>
+    <Stack spacing={4}>
+      {feedback && (
+        <Alert severity={feedback.type} onClose={() => setFeedback(null)}>
+          {feedback.message}
+        </Alert>
+      )}
 
-          {/* Categories List */}
-          <div className="space-y-2">
-            {categories.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No categories yet. Create your first one above!
-              </div>
-            ) : (
-              categories.map(category => (
-                <div key={category.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white">
-                  {editingId === category.id ? (
-                    <div className="flex items-center space-x-2 flex-1">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
-                        className="flex-1"
-                      />
-                      <Button onClick={handleSaveEdit} size="sm">
-                        Save
-                      </Button>
-                      <Button onClick={handleCancelEdit} variant="outline" size="sm">
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center space-x-3">
-                        <FolderOpen className="h-5 w-5 text-gray-400" />
-                        <span className="text-lg font-medium">{category.name}</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          onClick={() => handleEdit(category)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          onClick={() => handleDelete(category.id)}
-                          variant="destructive"
-                          size="sm"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <Container>
+        <Box sx={{ p: { xs: 3, sm: 4 } }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+            <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
+              <Typography variant="h4" fontWeight={700}>
+                Category library
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Group vocabulary thematically to accelerate recall.
+              </Typography>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width={{ xs: '100%', sm: 'auto' }}>
+              <TextField
+                fullWidth
+                placeholder="Category name"
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                InputProps={{ startAdornment: <CategoryRoundedIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={handleCreate}
+                disabled={!newName.trim()}
+              >
+                Add category
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
+        <Box sx={{ p: { xs: 2.5, sm: 3 } }}>
+          {isLoading ? (
+            <Stack spacing={2}>
+              {[...Array(4)].map((_, index) => (
+                <Skeleton key={index} variant="rounded" height={64} />
+              ))}
+            </Stack>
+          ) : categories.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <PaletteRoundedIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+              <Typography variant="h6" sx={{ mt: 2 }}>
+                No categories yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Create your first category to organise vocabulary.
+              </Typography>
+            </Box>
+          ) : (
+            <List disablePadding>
+              {categories.map((category, index) => (
+                <Box key={category.id}>
+                  <ListItem
+                    secondaryAction={
+                      <Stack direction="row" spacing={1}>
+                        <IconButton onClick={() => openEdit(category)}>
+                          <EditRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton color="error" onClick={() => setConfirmDelete(category.id)}>
+                          <DeleteRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    }
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Box
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: '14px',
+                          backgroundColor: 'rgba(63,214,193,0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <FolderSpecialRoundedIcon sx={{ color: 'primary.main' }} />
+                      </Box>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {category.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography variant="caption" color="text.secondary">
+                          {index + 1} · created {new Date(category.created_at).toLocaleDateString()}
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                  <Divider component="li" sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
+                </Box>
+              ))}
+            </List>
+          )}
+        </Box>
+      </Container>
+
+      <Dialog open={Boolean(editing)} onClose={() => setEditing(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Edit category</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+            <TextField
+              label="Category name"
+              value={editing?.name ?? ''}
+              onChange={(event) => setEditing((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
+              autoFocus
+            />
+            <Stack spacing={1}>
+              <Typography variant="caption" color="text.secondary">
+                Accent colour
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {colorPalette.map((color) => (
+                  <Box
+                    key={color}
+                    onClick={() => setEditing((prev) => (prev ? { ...prev, color } : prev))}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      backgroundColor: color,
+                      cursor: 'pointer',
+                      border: editing?.color === color ? '3px solid #fff' : '3px solid transparent',
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditing(null)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSave}>
+            Save changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
+        <DialogTitle>Remove category</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Are you sure you want to remove this category? Vocabulary will remain but lose this grouping.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => confirmDelete && void handleDelete(confirmDelete)}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 }

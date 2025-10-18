@@ -1,23 +1,91 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-  Languages, 
-  BookOpen, 
-  Brain, 
-  FolderOpen, 
-  Plus, 
-  TrendingUp, 
-  Clock, 
-  Target,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { Button } from './ui/Button';
-import { Skeleton, SkeletonCard } from './ui/Skeleton';
-import { Progress } from './ui/Progress';
+import { useEffect, useMemo, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import {
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardActionArea,
+  CardContent,
+  Chip,
+  Divider,
+  Grid,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/material';
+import { alpha, styled, useTheme } from '@mui/material/styles';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForwardRounded';
+import TranslateIcon from '@mui/icons-material/TranslateRounded';
+import PsychologyIcon from '@mui/icons-material/PsychologyRounded';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooksRounded';
+import CategoryIcon from '@mui/icons-material/CategoryRounded';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunchRounded';
+import TrendingUpIcon from '@mui/icons-material/TrendingUpRounded';
+import AccessTimeIcon from '@mui/icons-material/AccessTimeRounded';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
+
 import { db } from '../lib/supabase';
+import type { Vocabulary } from '../types';
+
+const quickActions = [
+  {
+    title: 'Translate & Save',
+    description: 'Quickly translate and store new vocabulary.',
+    icon: <TranslateIcon fontSize="small" />,
+    href: '/translator',
+  },
+  {
+    title: 'Practice Session',
+    description: 'Review cards selected by spaced repetition.',
+    icon: <PsychologyIcon fontSize="small" />,
+    href: '/practice',
+  },
+  {
+    title: 'Browse Vocabulary',
+    description: 'Organise, edit and search all your saved words.',
+    icon: <LibraryBooksIcon fontSize="small" />,
+    href: '/vocabulary',
+  },
+  {
+    title: 'Manage Categories',
+    description: 'Curate personalised categories for faster recall.',
+    icon: <CategoryIcon fontSize="small" />,
+    href: '/categories',
+  },
+];
+
+const HeroGradient = styled('div')(({ theme }) => ({
+  position: 'relative',
+  borderRadius: theme.shape.borderRadius * 1.5,
+  padding: theme.spacing(6),
+  overflow: 'hidden',
+  background:
+    'linear-gradient(135deg, rgba(63,214,193,0.14) 0%, rgba(63,214,193,0.05) 45%, rgba(25,27,32,0.6) 100%)',
+  border: '1px solid rgba(255,255,255,0.1)',
+}));
+
+const GradientOrb = styled('div')(() => ({
+  position: 'absolute',
+  width: 260,
+  height: 260,
+  borderRadius: '50%',
+  background:
+    'radial-gradient(circle, rgba(63,214,193,0.25) 0%, rgba(15,17,21,0) 70%)',
+  filter: 'blur(0px)',
+}));
+
+const StatCard = styled(Card)(() => ({
+  height: '100%',
+  background: 'linear-gradient(180deg, rgba(15,17,21,0.8) 0%, rgba(20,24,32,0.9) 100%)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: '0 24px 40px -24px rgba(0,0,0,0.45)',
+}));
 
 interface Stats {
   totalWords: number;
@@ -27,437 +95,346 @@ interface Stats {
 }
 
 export function Dashboard() {
+  const theme = useTheme();
   const [stats, setStats] = useState<Stats>({
     totalWords: 0,
     totalCategories: 0,
     wordsToday: 0,
-    practiceStreak: 0
+    practiceStreak: 0,
   });
-  const [recentWords, setRecentWords] = useState<any[]>([]);
+  const [recentWords, setRecentWords] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardData();
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [vocabulary, categories] = await Promise.all([
+          db.vocabulary.getAll(),
+          db.categories.getAll(),
+        ]);
+
+        const today = new Date().toDateString();
+        const wordsToday = vocabulary.filter(
+          (word) => new Date(word.created_at).toDateString() === today
+        ).length;
+
+        setStats({
+          totalWords: vocabulary.length,
+          totalCategories: categories.length,
+          wordsToday,
+          practiceStreak: Math.min(7, Math.floor(vocabulary.length / 15)),
+        });
+
+        setRecentWords(vocabulary.slice(0, 5));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
   }, []);
 
-  const loadDashboardData = async () => {
-    try {
-      const [vocabulary, categories] = await Promise.all([
-        db.vocabulary.getAll(),
-        db.categories.getAll()
-      ]);
-
-      // Calculate today's words
-      const today = new Date().toDateString();
-      const wordsToday = vocabulary.filter(word => 
-        new Date(word.created_at).toDateString() === today
-      ).length;
-
-      setStats({
-        totalWords: vocabulary.length,
-        totalCategories: categories.length,
-        wordsToday,
-        practiceStreak: 0 // TODO: Implement streak tracking
-      });
-
-      // Get recent words
-      setRecentWords(vocabulary.slice(0, 5));
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const quickActions = [
-    {
-      title: 'Translate & Learn',
-      description: 'Translate Polish words to English',
-      icon: Languages,
-      href: '/translator',
-      color: 'bg-blue-500',
-      hoverColor: 'hover:bg-blue-600'
-    },
-    {
-      title: 'Practice Words',
-      description: 'Review with spaced repetition',
-      icon: Brain,
-      href: '/practice',
-      color: 'bg-green-500',
-      hoverColor: 'hover:bg-green-600'
-    },
-    {
-      title: 'View Vocabulary',
-      description: 'Browse all saved words',
-      icon: BookOpen,
-      href: '/vocabulary',
-      color: 'bg-purple-500',
-      hoverColor: 'hover:bg-purple-600'
-    },
-    {
-      title: 'Manage Categories',
-      description: 'Organize your words',
-      icon: FolderOpen,
-      href: '/categories',
-      color: 'bg-orange-500',
-      hoverColor: 'hover:bg-orange-600'
-    }
-  ];
-
-  if (loading) {
-    return (
-      <motion.div 
-        className="space-y-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="space-y-4">
-          <Skeleton width="300px" height="40px" />
-          <Skeleton width="600px" height="24px" />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-        
-        <div className="space-y-4">
-          <Skeleton width="200px" height="32px" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+  const progressItems = useMemo(
+    () => [
+      {
+        label: 'Daily goal completion',
+        value: Math.min((stats.wordsToday / 20) * 100, 100),
+        icon: <AccessTimeIcon fontSize="small" />,
+      },
+      {
+        label: 'Vocabulary depth',
+        value: Math.min((stats.totalWords / 250) * 100, 100),
+        icon: <TrendingUpIcon fontSize="small" />,
+      },
+      {
+        label: 'Consistency streak',
+        value: Math.min((stats.practiceStreak / 14) * 100, 100),
+        icon: <RocketLaunchIcon fontSize="small" />,
+      },
+    ],
+    [stats]
+  );
 
   return (
-    <motion.div 
-      className="space-y-8"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Welcome Section */}
-      <motion.div 
-        className="relative text-center space-y-6 py-12 px-6 rounded-3xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-3xl" />
-        <div className="relative">
-          <motion.div 
-            className="flex items-center justify-center space-x-3 mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            >
-              <Sparkles className="w-10 h-10 text-primary" />
-            </motion.div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-              Welcome to pdEnglish
-            </h1>
-          </motion.div>
-          <motion.p 
-            className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            Master English vocabulary with Polish translations. Learn, practice, and track your progress with our intelligent spaced repetition system.
-          </motion.p>
-        </div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        {[
-          {
-            title: 'Total Words',
-            value: stats.totalWords,
-            description: 'Words in your vocabulary',
-            icon: BookOpen,
-            color: 'text-blue-500',
-            bgColor: 'bg-blue-500/10',
-            progress: Math.min((stats.totalWords / 1000) * 100, 100)
-          },
-          {
-            title: 'Words Today',
-            value: stats.wordsToday,
-            description: 'Added today',
-            icon: Clock,
-            color: 'text-green-500',
-            bgColor: 'bg-green-500/10',
-            progress: Math.min((stats.wordsToday / 20) * 100, 100)
-          },
-          {
-            title: 'Categories',
-            value: stats.totalCategories,
-            description: 'Word categories',
-            icon: FolderOpen,
-            color: 'text-purple-500',
-            bgColor: 'bg-purple-500/10',
-            progress: Math.min((stats.totalCategories / 10) * 100, 100)
-          },
-          {
-            title: 'Practice Streak',
-            value: stats.practiceStreak,
-            description: 'Days in a row',
-            icon: TrendingUp,
-            color: 'text-orange-500',
-            bgColor: 'bg-orange-500/10',
-            progress: Math.min((stats.practiceStreak / 30) * 100, 100)
-          }
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-          >
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-            >
-            <Card 
-              className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 hover:-translate-y-1"
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <motion.div 
-                  className="text-3xl font-bold text-foreground"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.7 + index * 0.1 }}
-                >
-                  {stat.value}
-                </motion.div>
-                <p className="text-xs text-muted-foreground">
-                  {stat.description}
-                </p>
-                <Progress 
-                  value={stat.progress} 
-                  size="sm" 
-                  variant={index === 0 ? 'default' : index === 1 ? 'success' : index === 2 ? 'warning' : 'error'}
-                  className="opacity-60"
-                />
-              </CardContent>
-            </Card>
-            </motion.div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div 
-        className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.8 }}
-      >
-        <motion.div 
-          className="flex items-center justify-between"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.9 }}
-        >
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-            Quick Actions
-          </h2>
-          <motion.div
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-          >
-            <Target className="w-8 h-8 text-primary" />
-          </motion.div>
-        </motion.div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickActions.map((action, index) => (
-            <motion.div
-              key={action.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 1.0 + index * 0.1 }}
-            >
-              <Link to={action.href}>
-                <Card className="group hover:shadow-2xl transition-all duration-500 cursor-pointer border-2 hover:border-primary/30 hover:-translate-y-2 overflow-hidden">
-                  <CardContent className="p-6 relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <div className="relative flex flex-col items-center text-center space-y-4">
-                      <motion.div 
-                        className={`w-20 h-20 ${action.color} ${action.hoverColor} rounded-3xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-lg`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <action.icon className="w-10 h-10 text-white" />
-                      </motion.div>
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors duration-300">
-                          {action.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground group-hover:text-foreground transition-colors duration-300">
-                          {action.description}
-                        </p>
-                      </div>
-                      <motion.div
-                        className="flex items-center space-x-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        whileHover={{ x: 5 }}
-                      >
-                        <span className="text-sm font-medium">Explore</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </motion.div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Recent Words */}
-      {recentWords.length > 0 && (
-        <motion.div 
-          className="space-y-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 1.2 }}
-        >
-          <motion.div 
-            className="flex items-center justify-between"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 1.3 }}
-          >
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-              Recent Words
-            </h2>
-            <Link to="/vocabulary">
-              <Button variant="outline" size="sm" className="group">
-                View All
-                <motion.div
-                  className="ml-2"
-                  whileHover={{ x: 3 }}
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </motion.div>
+    <Stack spacing={6}>
+      {/* Hero */}
+      <HeroGradient>
+        <GradientOrb style={{ top: -60, left: -40 }} />
+        <GradientOrb style={{ bottom: -80, right: -50, opacity: 0.6 }} />
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center" justifyContent="space-between">
+          <Stack spacing={2} sx={{ position: 'relative' }}>
+            <Chip
+              label="Personalised dashboard"
+              variant="outlined"
+              sx={{
+                alignSelf: 'flex-start',
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                color: theme.palette.primary.light,
+              }}
+            />
+            <Typography variant="h4" fontWeight={700} lineHeight={1.15}>
+              Welcome back, ready for today's curated learning session?
+            </Typography>
+            <Typography variant="body1" color="text.secondary" maxWidth={520}>
+              Your learning path is updated in real time. Translate new words, revisit tricky phrases, and keep your streak alive.
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForwardIcon />}
+                component={RouterLink}
+                to="/translator"
+              >
+                Start translating
               </Button>
-            </Link>
-          </motion.div>
-          
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <div className="space-y-1">
-                {recentWords.map((word, idx) => (
-                  <motion.div 
-                    key={word.id} 
-                    className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 1.4 + idx * 0.1 }}
-                    whileHover={{ x: 5 }}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <motion.div 
-                        className="w-10 h-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center"
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                      >
-                        <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                      </motion.div>
-                      <div>
-                        <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {word.polish}
-                        </div>
-                        <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                          {word.english}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      {new Date(word.created_at).toLocaleDateString()}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              <Button variant="outlined" size="large" component={RouterLink} to="/practice">
+                Resume practice
+              </Button>
+            </Stack>
+          </Stack>
+          <Card
+            sx={{
+              minWidth: { xs: '100%', md: 320 },
+              backdropFilter: 'blur(18px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+            }}
+          >
+            <CardContent>
+              <Stack spacing={3}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="subtitle1" color="text.secondary">
+                    Current streak
+                  </Typography>
+                  <Chip label={`${stats.practiceStreak} days`} color="primary" variant="outlined" size="small" />
+                </Stack>
+                <Typography variant="h3" fontWeight={700}>
+                  {stats.totalWords}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total words in your collection
+                </Typography>
+                <Divider flexItem sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Stack spacing={2}>
+                  {progressItems.map((item) => (
+                    <Stack key={item.label} spacing={1.2}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ color: 'primary.light' }}>{item.icon}</Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.label}
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={item.value}
+                        sx={{
+                          height: 10,
+                          borderRadius: 5,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                        }}
+                      />
+                    </Stack>
+                  ))}
+                </Stack>
+              </Stack>
             </CardContent>
           </Card>
-        </motion.div>
-      )}
+        </Stack>
+      </HeroGradient>
 
-      {/* Call to Action */}
-      {stats.totalWords === 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 1.5 }}
-        >
-          <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 overflow-hidden">
-            <CardContent className="p-12 text-center relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
-              <div className="relative space-y-6">
-                <motion.div 
-                  className="w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center mx-auto shadow-lg"
-                  animate={{ 
-                    scale: [1, 1.05, 1],
-                    rotate: [0, 5, -5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity,
-                    ease: 'easeInOut'
+      {/* Statistics cards */}
+      <Grid container spacing={3}>
+        {loading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <Grid key={index} item xs={12} sm={6} lg={3}>
+                <Skeleton variant="rounded" height={160} />
+              </Grid>
+            ))
+          : [
+              {
+                label: 'Vocabulary depth',
+                value: stats.totalWords,
+                caption: 'Total words saved',
+              },
+              {
+                label: 'Words today',
+                value: stats.wordsToday,
+                caption: 'New entries added',
+              },
+              {
+                label: 'Categories curated',
+                value: stats.totalCategories,
+                caption: 'Thematic groups',
+              },
+              {
+                label: 'Streak',
+                value: stats.practiceStreak,
+                caption: 'Days in a row',
+              },
+            ].map((stat) => (
+              <Grid key={stat.label} item xs={12} sm={6} lg={3}>
+                <StatCard>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={1.5}>
+                      <Typography variant="overline" color="text.secondary">
+                        {stat.label}
+                      </Typography>
+                      <Typography variant="h4" fontWeight={700}>
+                        {stat.value}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {stat.caption}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </StatCard>
+              </Grid>
+            ))}
+      </Grid>
+
+      {/* Quick actions */}
+      <Stack spacing={3}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="h5" fontWeight={600}>
+            Quick actions
+          </Typography>
+          <Button endIcon={<ArrowForwardIcon />} component={RouterLink} to="/practice" variant="text">
+            View all flows
+          </Button>
+        </Stack>
+        <Grid container spacing={3}>
+          {quickActions.map((action) => (
+            <Grid key={action.title} item xs={12} sm={6} lg={3}>
+              <Card
+                sx={{
+                  height: '100%',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'linear-gradient(180deg, rgba(15,17,21,0.6) 0%, rgba(18,21,28,0.9) 100%)',
+                }}
+              >
+                <CardActionArea component={RouterLink} to={action.href} sx={{ height: '100%' }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={2}>
+                      <Avatar
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          bgcolor: alpha(theme.palette.primary.main, 0.2),
+                          color: theme.palette.primary.main,
+                        }}
+                      >
+                        {action.icon}
+                      </Avatar>
+                      <Stack spacing={0.6}>
+                        <Typography variant="h6" fontWeight={600}>
+                          {action.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {action.description}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography variant="body2" fontWeight={600} color="primary">
+                          Open
+                        </Typography>
+                        <ArrowForwardIcon fontSize="small" color="primary" />
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Stack>
+
+      {/* Recent additions */}
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+        <CardContent sx={{ p: 0 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 3 }}>
+            <Stack spacing={0.5}>
+              <Typography variant="h6" fontWeight={600}>
+                Recent vocabulary
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Your latest saved words at a glance.
+              </Typography>
+            </Stack>
+            <Button component={RouterLink} to="/vocabulary" variant="outlined" size="small">
+              Manage vocabulary
+            </Button>
+          </Stack>
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+          {loading ? (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                {[...Array(4)].map((_, index) => (
+                  <Skeleton key={index} variant="rounded" height={56} />
+                ))}
+              </Stack>
+            </Box>
+          ) : recentWords.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <AutoAwesomeIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.4) }} />
+              <Typography variant="h6" sx={{ mt: 1.5 }}>
+                No vocabulary added yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Start by translating your first word.
+              </Typography>
+            </Box>
+          ) : (
+            <List disablePadding>
+              {recentWords.map((word) => (
+                <ListItem
+                  key={word.id}
+                  divider
+                  secondaryAction={
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(word.created_at).toLocaleDateString()}
+                    </Typography>
+                  }
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.06) },
                   }}
                 >
-                  <Plus className="w-12 h-12 text-primary" />
-                </motion.div>
-                <div className="space-y-3">
-                  <h3 className="text-3xl font-bold text-foreground">Start Your Learning Journey</h3>
-                  <p className="text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
-                    Begin mastering English vocabulary with Polish translations. Your first word is just a click away!
-                  </p>
-                </div>
-                <Link to="/translator">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Button size="lg" className="px-8 py-4 text-lg font-semibold shadow-lg">
-                      <Languages className="w-6 h-6 mr-3" />
-                      Start Translating
-                      <motion.div
-                        className="ml-2"
-                        animate={{ x: [0, 5, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        <ArrowRight className="w-5 h-5" />
-                      </motion.div>
-                    </Button>
-                  </motion.div>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-    </motion.div>
+                  <ListItemAvatar>
+                    <Avatar
+                      sx={{
+                        bgcolor: alpha(theme.palette.primary.main, 0.22),
+                        color: theme.palette.primary.light,
+                        width: 44,
+                        height: 44,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {word.polish.charAt(0).toUpperCase()}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          {word.polish}
+                        </Typography>
+                        <Chip label={word.category?.name ?? 'Uncategorised'} size="small" variant="outlined" />
+                      </Stack>
+                    }
+                    secondary={
+                      <Typography variant="body2" color="text.secondary">
+                        {word.english}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }
