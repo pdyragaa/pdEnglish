@@ -39,7 +39,7 @@ export const useVocabularyStore = create<VocabularyState>((set, get) => ({
   currentSession: [],
   currentIndex: 0,
   isBack: false,
-  selectedLanguage: 'en',
+  selectedLanguage: 'pl',
   selectedCategory: null,
   isLoading: false,
   error: null,

@@ -114,20 +114,25 @@ export function Translator() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Language Toggle */}
-          <div className="flex items-center justify-center space-x-4">
-            <div className={`px-4 py-2 rounded-md ${selectedLanguage === 'pl' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}>
-              Polish
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleLanguage}
-              disabled={isTranslating}
-            >
-              <ArrowRightLeft className="h-4 w-4" />
-            </Button>
-            <div className={`px-4 py-2 rounded-md ${selectedLanguage === 'en' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}>
-              English
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 text-center">
+              Translation Direction
+            </label>
+            <div className="flex items-center justify-center space-x-4">
+              <div className={`px-4 py-2 rounded-md font-medium ${selectedLanguage === 'pl' ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' : 'bg-gray-100 text-gray-500'}`}>
+                PL → EN
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleLanguage}
+                disabled={isTranslating}
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+              </Button>
+              <div className={`px-4 py-2 rounded-md font-medium ${selectedLanguage === 'en' ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' : 'bg-gray-100 text-gray-500'}`}>
+                EN → PL
+              </div>
             </div>
           </div>
 
@@ -139,7 +144,7 @@ export function Translator() {
             <Input
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Enter ${selectedLanguage === 'en' ? 'English' : 'Polish'} text...`}
+              placeholder={selectedLanguage === 'en' ? 'Enter English text (e.g., "hello")...' : 'Wpisz polski tekst (np. "cześć")...'}
               disabled={isTranslating}
               onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
             />
