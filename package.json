@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "preview": "vite preview",
     "test": "echo 'No tests specified' && exit 0",
-    "ci": "npm run type-check && npm run lint && npm run build"
+    "ci": "npm run type-check && npm run lint && npm run build",
+    "deploy": "./deploy.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.1",
