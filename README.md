@@ -78,9 +78,19 @@ npm run build
 
 ## Deployment
 
-The app can be deployed to:
+### Automatic Deployment (Recommended)
+This project is configured for automatic deployment with GitHub Actions and Vercel:
+
+1. **Push to main branch** → Automatic deployment to production
+2. **Create Pull Request** → Preview deployment
+3. **CI/CD Pipeline** → Automatic testing and building
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed setup instructions.
+
+### Manual Deployment
+The app can also be deployed to:
 - Vercel
-- Netlify
+- Netlify  
 - GitHub Pages
 
 Make sure to set the environment variables in your deployment platform.
