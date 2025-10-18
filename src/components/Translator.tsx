@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Loader2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2, Languages } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';

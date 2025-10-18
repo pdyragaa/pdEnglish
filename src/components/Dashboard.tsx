@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Languages, 
@@ -200,7 +200,7 @@ export function Dashboard() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickActions.map((action, index) => (
+          {quickActions.map((action) => (
             <Link key={action.title} to={action.href}>
               <Card className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-primary/20">
                 <CardContent className="p-6">
@@ -241,11 +241,11 @@ export function Dashboard() {
           <Card>
             <CardContent className="p-6">
               <div className="space-y-4">
-                {recentWords.map((word, index) => (
+                {recentWords.map((word, idx) => (
                   <div key={word.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                     <div className="flex items-center space-x-4">
                       <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary">{index + 1}</span>
+                        <span className="text-sm font-medium text-primary">{idx + 1}</span>
                       </div>
                       <div>
                         <div className="font-medium text-foreground">{word.polish}</div>
