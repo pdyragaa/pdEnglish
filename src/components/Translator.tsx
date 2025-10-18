@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Loader2, Languages } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowRightLeft, Loader2, Languages, Sparkles } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -38,6 +39,7 @@ export function Translator() {
       setError('Failed to setup default category');
     }
   };
+
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
@@ -107,17 +109,34 @@ export function Translator() {
 
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center space-x-2">
-          <Languages className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold text-foreground">Smart Translator</h1>
+    <motion.div 
+      className="max-w-6xl mx-auto space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Hero Section */}
+      <motion.div 
+        className="text-center space-y-6 py-12 px-6 rounded-3xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          <motion.div
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+          >
+            <Sparkles className="w-10 h-10 text-primary" />
+          </motion.div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+            Smart Translator
+          </h1>
         </div>
-        <p className="text-lg text-muted-foreground">
-          Translate Polish words to English and automatically save them to your vocabulary
+        <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+          Translate Polish to English and vice versa with AI-powered accuracy. Every translation is automatically saved to your vocabulary.
         </p>
-      </div>
+      </motion.div>
 
       <Card className="shadow-xl border-2 border-primary/10">
         <CardHeader className="pb-6">
@@ -228,6 +247,6 @@ export function Translator() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }
