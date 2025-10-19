@@ -153,7 +153,7 @@ export function Translator() {
           ease_factor: initialReview.easeFactor,
           interval: initialReview.interval,
           repetitions: initialReview.repetitions,
-          next_review: initialReview.nextReview,
+          next_review: initialReview.nextReview?.toISOString() || null,
           last_reviewed: null
         });
       } catch (reviewError) {
