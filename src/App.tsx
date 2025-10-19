@@ -6,6 +6,7 @@ import { Translator } from './components/Translator';
 import { VocabularyList } from './components/VocabularyList';
 import { ReviewSession } from './components/ReviewSession';
 import { Categories } from './components/Categories';
+import { Sentences } from './components/Sentences';
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ function App() {
             <Route path="/vocabulary" element={<VocabularyList />} />
             <Route path="/practice" element={<ReviewSession />} />
             <Route path="/categories" element={<Categories />} />
+            <Route path="/sentences" element={<Sentences />} />
           </Routes>
         </Layout>
       </Router>

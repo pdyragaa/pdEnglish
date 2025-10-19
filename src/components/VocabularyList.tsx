@@ -16,6 +16,7 @@ import {
   Tooltip,
   Typography,
   InputAdornment,
+  Link,
 } from '@mui/material';
 import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import { styled } from '@mui/material/styles';
@@ -26,6 +27,7 @@ import FilterAltRoundedIcon from '@mui/icons-material/FilterAltRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+import VisibilityIcon from '@mui/icons-material/VisibilityRounded';
 
 import { db } from '../lib/supabase';
 import { generateSentenceVariations } from '../lib/deepseek';
@@ -326,17 +328,28 @@ export function VocabularyList() {
               Use AI to enrich vocabulary context with ready-to-use examples.
             </Typography>
           </Stack>
-          <Button
-            variant="outlined"
-            startIcon={<AutoAwesomeRoundedIcon />}
-            onClick={() => {
-              const firstId = vocabulary[0]?.id;
-              if (firstId) void handleGenerateSentences(firstId);
-            }}
-            disabled={!vocabulary.length || Boolean(generatingId)}
-          >
-            Generate for latest
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<AutoAwesomeRoundedIcon />}
+              onClick={() => {
+                const firstId = vocabulary[0]?.id;
+                if (firstId) void handleGenerateSentences(firstId);
+              }}
+              disabled={!vocabulary.length || Boolean(generatingId)}
+            >
+              Generate for latest
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<VisibilityIcon />}
+              component={Link}
+              href="/sentences"
+              sx={{ textDecoration: 'none' }}
+            >
+              View all sentences
+            </Button>
+          </Stack>
         </Stack>
 
         {generatingId && (

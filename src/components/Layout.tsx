@@ -27,6 +27,7 @@ import PsychologyIcon from '@mui/icons-material/PsychologyRounded';
 import CategoryIcon from '@mui/icons-material/CategoryRounded';
 import InsightsIcon from '@mui/icons-material/InsightsRounded';
 import SearchIcon from '@mui/icons-material/SearchRounded';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
 
 const drawerWidth = 260;
 
@@ -68,6 +69,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: <DashboardIcon fontSize="small" /> },
   { name: 'Translator', href: '/translator', icon: <TranslateIcon fontSize="small" /> },
   { name: 'Vocabulary', href: '/vocabulary', icon: <LibraryBooksIcon fontSize="small" /> },
+  { name: 'Sentences', href: '/sentences', icon: <AutoAwesomeIcon fontSize="small" /> },
   { name: 'Practice', href: '/practice', icon: <PsychologyIcon fontSize="small" /> },
   { name: 'Categories', href: '/categories', icon: <CategoryIcon fontSize="small" /> },
   { name: 'Stats', href: '/stats', icon: <InsightsIcon fontSize="small" /> },

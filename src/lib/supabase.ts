@@ -127,6 +127,22 @@ export const db = {
 
   // Sentences
   sentences: {
+    async getAll(): Promise<Sentence[]> {
+      const { data, error } = await supabase
+        .from('sentences')
+        .select(`
+          *,
+          vocabulary:vocabulary(
+            *,
+            category:categories(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+
     async getByVocabularyId(vocabularyId: string): Promise<Sentence[]> {
       const { data, error } = await supabase
         .from('sentences')
@@ -157,6 +173,18 @@ export const db = {
       
       if (error) throw error;
       return data || [];
+    },
+
+    async update(id: string, updates: Partial<Omit<Sentence, 'id' | 'created_at' | 'vocabulary_id'>>): Promise<Sentence> {
+      const { data, error } = await supabase
+        .from('sentences')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
 
     async delete(id: string): Promise<void> {

@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
-  Divider,
   Fade,
-  Grid,
   Paper,
   Stack,
   TextField,
@@ -14,7 +12,6 @@ import {
   Typography,
 } from '@mui/material';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
-import TranslateRoundedIcon from '@mui/icons-material/TranslateRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import { translatePolishToEnglish, translateEnglishToPolish } from '../lib/translate';
@@ -49,7 +46,6 @@ export function Translator() {
     void ensureDefaultCategory();
   }, [setError]);
 
-  const directionLabel = useMemo(() => (selectedLanguage === 'pl' ? 'Polish → English' : 'English → Polish'), [selectedLanguage]);
 
   const handleDirectionChange = (_: React.MouseEvent<HTMLElement>, value: 'pl' | 'en' | null) => {
     if (!value || value === selectedLanguage) return;
@@ -72,12 +68,6 @@ export function Translator() {
     }
   };
 
-  const handleClear = () => {
-    setInputText('');
-    setTranslatedText('');
-    setSaveMessage(null);
-    setError(null);
-  };
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
@@ -138,166 +128,97 @@ export function Translator() {
 
   return (
     <Fade in timeout={500}>
-      <Stack spacing={6}>
+      <Stack spacing={2}>
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 4, md: 6 },
-            borderRadius: 4,
+            p: 2,
+            borderRadius: 2,
             border: '1px solid rgba(255,255,255,0.08)',
             background:
               'linear-gradient(140deg, rgba(63,214,193,0.16) 0%, rgba(63,214,193,0.05) 50%, rgba(20,24,32,0.85) 100%)',
           }}
         >
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <AutoAwesomeRoundedIcon sx={{ color: 'primary.light' }} />
-              <Typography variant="caption" color="primary.light" fontWeight={600}>
-                AI assisted translation
-              </Typography>
-            </Stack>
-            <Typography variant="h3" fontWeight={700}>
-              Translate, store and remember effortlessly.
+          <Stack direction="row" spacing={1} alignItems="center">
+            <AutoAwesomeRoundedIcon sx={{ color: 'primary.light', fontSize: 18 }} />
+            <Typography variant="h5" fontWeight={700}>
+              Translate & Save
             </Typography>
-            <Typography variant="body1" color="text.secondary" maxWidth={600}>
-              Automatic saving keeps your vocabulary collection in sync. Switch direction anytime and reuse existing translations instantly.
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <Button
-                variant="contained"
-                startIcon={<TranslateRoundedIcon />}
-                onClick={handleTranslate}
-                disabled={isTranslating || !inputText.trim()}
-              >
-                {isTranslating ? 'Translating…' : 'Translate current text'}
-              </Button>
-              <Button variant="outlined" onClick={handleClear} disabled={!inputText}>
-                Clear input
-              </Button>
-            </Stack>
           </Stack>
         </Paper>
 
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 4, borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Stack spacing={3}>
-                <Stack spacing={1}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Translation direction
-                  </Typography>
-                  <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary">
-                    <ToggleButton value="pl">🇵🇱 Polish → English</ToggleButton>
-                    <ToggleButton value="en">🇬🇧 English → Polish</ToggleButton>
-                  </ToggleButtonGroup>
-                  <Typography variant="caption" color="text.secondary">
-                    {directionLabel}
-                  </Typography>
-                </Stack>
+        <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="subtitle2" color="text.secondary" sx={{ minWidth: 80 }}>
+                Direction:
+              </Typography>
+              <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary" size="small">
+                <ToggleButton value="pl">🇵🇱 PL→EN</ToggleButton>
+                <ToggleButton value="en">🇬🇧 EN→PL</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
 
-                <Stack spacing={1.5}>
-                  <TextField
-                    label={selectedLanguage === 'pl' ? 'Polish text' : 'English text'}
-                    placeholder={selectedLanguage === 'pl' ? 'Wpisz polskie zdanie…' : 'Enter English sentence…'}
-                    value={inputText}
-                    onChange={(event) => setInputText(event.target.value)}
-                    multiline
-                    minRows={6}
-                    maxRows={8}
-                    fullWidth
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    {inputText.length} / 500 characters
-                  </Typography>
-                </Stack>
+            <TextField
+              label={selectedLanguage === 'pl' ? 'Polish text' : 'English text'}
+              placeholder={selectedLanguage === 'pl' ? 'Wpisz polskie zdanie…' : 'Enter English sentence…'}
+              value={inputText}
+              onChange={(event) => setInputText(event.target.value)}
+              multiline
+              minRows={3}
+              maxRows={5}
+              fullWidth
+              size="small"
+            />
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={handleTranslate}
-                    disabled={!inputText.trim() || isTranslating}
-                    startIcon={<SwapHorizRoundedIcon />}
-                  >
-                    {isTranslating ? 'Translating…' : 'Translate now'}
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    onClick={handleCopy}
-                    disabled={!translatedText}
-                    startIcon={<ContentCopyRoundedIcon fontSize="small" />}
-                  >
-                    {copied ? 'Copied!' : 'Copy translation'}
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                variant="contained"
+                onClick={handleTranslate}
+                disabled={!inputText.trim() || isTranslating}
+                startIcon={<SwapHorizRoundedIcon />}
+                size="small"
+                sx={{ flex: 1 }}
+              >
+                {isTranslating ? 'Translating…' : 'Translate'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleCopy}
+                disabled={!translatedText}
+                startIcon={<ContentCopyRoundedIcon fontSize="small" />}
+                size="small"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </Stack>
+
+            {translatedText && (
+              <Fade in timeout={300}>
+                <Box sx={{ p: 2, bgcolor: 'rgba(63,214,193,0.08)', borderRadius: 2, border: '1px solid rgba(63,214,193,0.2)' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    {selectedLanguage === 'pl' ? 'English translation:' : 'Polish translation:'}
+                  </Typography>
+                  <Typography variant="h6" fontWeight={600}>
+                    {translatedText}
+                  </Typography>
+                </Box>
+              </Fade>
+            )}
 
             {saveMessage && (
-              <Alert severity={saveMessage.includes('Saved') ? 'success' : 'warning'} sx={{ mt: 2 }}>
+              <Alert severity={saveMessage.includes('Saved') ? 'success' : 'warning'} sx={{ mt: 1 }}>
                 {saveMessage}
               </Alert>
             )}
 
             {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
+              <Alert severity="error" sx={{ mt: 1 }}>
                 {error}
               </Alert>
             )}
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Paper
-              sx={{
-                p: 4,
-                borderRadius: 4,
-                border: '1px solid rgba(255,255,255,0.06)',
-                minHeight: 320,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3,
-              }}
-            >
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="subtitle2" color="text.secondary">
-                  {selectedLanguage === 'pl' ? 'English translation' : 'Polish translation'}
-                </Typography>
-              </Stack>
-
-              <Box flexGrow={1} display="flex" alignItems="center" justifyContent="center">
-                {translatedText ? (
-                  <Fade in timeout={300}>
-                    <Typography variant="h4" fontWeight={600} textAlign="center">
-                      {translatedText}
-                    </Typography>
-                  </Fade>
-                ) : (
-                  <Stack spacing={1} alignItems="center" color="text.secondary">
-                    <TranslateRoundedIcon sx={{ fontSize: 40, opacity: 0.4 }} />
-                    <Typography variant="body2">Your translation will appear here.</Typography>
-                  </Stack>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    bgcolor: translatedText ? 'success.main' : 'text.disabled',
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {translatedText ? 'Saved to vocabulary' : 'Awaiting translation'}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Grid>
-        </Grid>
+          </Stack>
+        </Paper>
       </Stack>
     </Fade>
   );

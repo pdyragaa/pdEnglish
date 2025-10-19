@@ -4,7 +4,7 @@ A Progressive Web App for learning English with Polish-English translation, voca
 
 ## Features
 
-- **Translation**: Polish ↔ English translation using LibreTranslate API
+- **Translation**: Polish ↔ English translation using DeepL API
 - **Vocabulary Management**: Save, organize, and manage vocabulary with custom categories
 - **AI Sentence Generation**: Generate contextual sentence variations using DeepSeek API
 - **Spaced Repetition**: Anki-style flashcards with SM-2 algorithm for optimal learning
@@ -14,7 +14,7 @@ A Progressive Web App for learning English with Polish-English translation, voca
 
 - **Frontend**: React 18 + Vite + TypeScript
 - **Database**: Supabase (PostgreSQL)
-- **Translation**: LibreTranslate API
+- **Translation**: DeepL API
 - **AI**: DeepSeek API
 - **Styling**: Tailwind CSS
 - **State Management**: Zustand + TanStack Query
@@ -28,7 +28,13 @@ A Progressive Web App for learning English with Polish-English translation, voca
 2. In the SQL Editor, run the migration from `supabase/migrations/001_initial_schema.sql`
 3. Copy your project URL and anon key from Settings → API
 
-### 2. Environment Variables
+### 2. DeepL API Setup
+
+1. Go to [DeepL API](https://www.deepl.com/pro-api) and sign up for a free account
+2. Get your API key from the DeepL API dashboard
+3. The free tier includes 500,000 characters per month
+
+### 3. Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -36,22 +42,22 @@ Create a `.env` file in the root directory:
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_DEEPSEEK_API_KEY=sk-bb4172be4c4c4dfba576cfe7f5485cad
-VITE_LIBRETRANSLATE_URL=https://libretranslate.com
+VITE_DEEPL_API_KEY=your_deepl_api_key
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 4. Development
+### 5. Development
 
 ```bash
 npm run dev
 ```
 
-### 5. Build for Production
+### 6. Build for Production
 
 ```bash
 npm run build

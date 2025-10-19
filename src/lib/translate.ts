@@ -1,4 +1,4 @@
-import type { TranslationResponse } from '../types';
+import { translatePolishToEnglish as deeplTranslatePolishToEnglish, translateEnglishToPolish as deeplTranslateEnglishToPolish } from './deepl';
 
 export async function translateText(text: string, source: 'pl' | 'en', target: 'pl' | 'en'): Promise<string> {
   if (!text.trim()) {
@@ -10,23 +10,13 @@ export async function translateText(text: string, source: 'pl' | 'en', target: '
   }
 
   try {
-    const encodedText = encodeURIComponent(text);
-    const langPair = `${source}|${target}`;
-    const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${langPair}`;
-    
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Translation failed: ${response.status} ${response.statusText}`);
+    if (source === 'pl' && target === 'en') {
+      return await deeplTranslatePolishToEnglish(text);
+    } else if (source === 'en' && target === 'pl') {
+      return await deeplTranslateEnglishToPolish(text);
+    } else {
+      throw new Error(`Unsupported language pair: ${source} to ${target}`);
     }
-
-    const data: TranslationResponse = await response.json();
-    
-    if (data.responseStatus !== 200) {
-      throw new Error(`Translation error: ${data.responseDetails || 'Unknown error'}`);
-    }
-
-    return data.responseData.translatedText;
   } catch (error) {
     console.error('Translation error:', error);
     throw new Error(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

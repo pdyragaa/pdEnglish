@@ -1,6 +1,6 @@
 import type { DeepSeekResponse, SentenceVariation } from '../types';
 
-const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
+const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || 'sk-bb4172be4c4c4dfba576cfe7f5485cad';
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export async function generateSentenceVariations(word: string, polish: string): Promise<SentenceVariation[]> {
