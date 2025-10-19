@@ -17,6 +17,7 @@ import { translatePolishToEnglish, translateEnglishToPolish } from '../lib/trans
 import { generateWordInfo, type WordInfo } from '../lib/deepseek';
 import { db } from '../lib/supabase';
 import { useVocabularyStore } from '../store/useVocabularyStore';
+import { getInitialReview } from '../lib/spaced-repetition';
 
 export function Translator() {
   const [inputText, setInputText] = useState('');
@@ -142,7 +143,24 @@ export function Translator() {
         category_id: defaultCategoryId,
       };
 
-      await db.vocabulary.create(vocabulary);
+      const newVocabulary = await db.vocabulary.create(vocabulary);
+      
+      // Automatically create a review entry for spaced repetition
+      try {
+        const initialReview = getInitialReview();
+        await db.reviews.create({
+          vocabulary_id: newVocabulary.id,
+          ease_factor: initialReview.easeFactor,
+          interval: initialReview.interval,
+          repetitions: initialReview.repetitions,
+          next_review: initialReview.nextReview,
+          last_reviewed: null
+        });
+      } catch (reviewError) {
+        console.warn('Failed to create review entry:', reviewError);
+        // Don't fail the vocabulary save if review creation fails
+      }
+      
       setSaveMessage('Saved to vocabulary!');
       setIsSaved(true);
       setTimeout(() => setSaveMessage(null), 2500);
@@ -155,15 +173,10 @@ export function Translator() {
   return (
     <Fade in timeout={500}>
       <Stack spacing={3} sx={{ backgroundColor: '#000000', p: 2 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Typography variant="subtitle2" color="text.secondary" sx={{ minWidth: 80 }}>
-            Direction:
-          </Typography>
-          <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary" size="small">
-            <ToggleButton value="pl">🇵🇱 PL→EN</ToggleButton>
-            <ToggleButton value="en">🇬🇧 EN→PL</ToggleButton>
-          </ToggleButtonGroup>
-        </Stack>
+        <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary" size="small">
+          <ToggleButton value="pl">🇵🇱 PL→EN</ToggleButton>
+          <ToggleButton value="en">🇬🇧 EN→PL</ToggleButton>
+        </ToggleButtonGroup>
 
         <TextField
           variant="standard"
