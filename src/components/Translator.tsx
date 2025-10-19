@@ -75,9 +75,10 @@ export function Translator() {
   const handleShowMoreInfo = async () => {
     if (!inputText.trim() || !translatedText.trim()) return;
     
-    // Check if input is a single word (no spaces)
-    if (inputText.trim().includes(' ')) {
-      setError('Word info is only available for single words, not phrases');
+    // Check if input is 1-4 words (support single words and phrasal verbs)
+    const wordCount = inputText.trim().split(/\s+/).length;
+    if (wordCount > 4) {
+      setError('Word info is only available for words and short phrases (up to 4 words)');
       return;
     }
 
@@ -230,7 +231,7 @@ export function Translator() {
               </Button>
             </Stack>
 
-            {translatedText && !inputText.trim().includes(' ') && (
+            {translatedText && inputText.trim().split(/\s+/).length <= 4 && (
               <Button
                 variant="outlined"
                 onClick={handleShowMoreInfo}

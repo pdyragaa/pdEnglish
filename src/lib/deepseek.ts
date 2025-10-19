@@ -144,7 +144,7 @@ export async function generateWordInfo(word: string, polishTranslation: string):
     throw new Error('DeepSeek API key is not configured');
   }
 
-  const prompt = `Provide a Polish definition and 2 example sentences for the English word "${word}" (translated as "${polishTranslation}").
+  const prompt = `Provide a Polish definition and 2 example sentences for the English word or phrase "${word}" (translated as "${polishTranslation}").
 
 Return ONLY a valid JSON object with this exact format:
 {
@@ -157,11 +157,12 @@ Return ONLY a valid JSON object with this exact format:
 
 Requirements:
 - Definition should be clear and concise in Polish
-- Examples should be practical and show different uses of the word
+- If this is a phrasal verb, explain its idiomatic meaning
+- Examples should be practical and show different uses
 - Make examples diverse (different contexts, tenses, etc.)
 - Keep sentences natural and commonly used
 
-Word: "${word}"
+Word/Phrase: "${word}"
 Polish translation: "${polishTranslation}"`;
 
   try {
