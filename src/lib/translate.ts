@@ -1,5 +1,3 @@
-import { translatePolishToEnglish as deeplTranslatePolishToEnglish, translateEnglishToPolish as deeplTranslateEnglishToPolish } from './deepl';
-
 export async function translateText(text: string, source: 'pl' | 'en', target: 'pl' | 'en'): Promise<string> {
   if (!text.trim()) {
     throw new Error('Text cannot be empty');
@@ -10,13 +8,29 @@ export async function translateText(text: string, source: 'pl' | 'en', target: '
   }
 
   try {
-    if (source === 'pl' && target === 'en') {
-      return await deeplTranslatePolishToEnglish(text);
-    } else if (source === 'en' && target === 'pl') {
-      return await deeplTranslateEnglishToPolish(text);
-    } else {
-      throw new Error(`Unsupported language pair: ${source} to ${target}`);
+    const sourceLang = source === 'pl' ? 'PL' : 'EN';
+    const targetLang = target === 'pl' ? 'PL' : 'EN';
+
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        sourceLang,
+        targetLang,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.translatedText;
+
   } catch (error) {
     console.error('Translation error:', error);
     throw new Error(`Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
