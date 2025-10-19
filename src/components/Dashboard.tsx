@@ -63,7 +63,7 @@ const quickActions = [
 const HeroGradient = styled('div')(({ theme }) => ({
   position: 'relative',
   borderRadius: theme.shape.borderRadius * 1.5,
-  padding: theme.spacing(6),
+  padding: theme.spacing(4),
   overflow: 'hidden',
   background:
     'linear-gradient(135deg, rgba(63,214,193,0.14) 0%, rgba(63,214,193,0.05) 45%, rgba(25,27,32,0.6) 100%)',
@@ -157,12 +157,12 @@ export function Dashboard() {
   );
 
   return (
-    <Stack spacing={6}>
+    <Stack spacing={4}>
       {/* Hero */}
       <HeroGradient>
         <GradientOrb style={{ top: -60, left: -40 }} />
         <GradientOrb style={{ bottom: -80, right: -50, opacity: 0.6 }} />
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center" justifyContent="space-between">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="center" justifyContent="space-between">
           <Stack spacing={2} sx={{ position: 'relative' }}>
             <Chip
               label="Personalised dashboard"
@@ -244,7 +244,7 @@ export function Dashboard() {
       </HeroGradient>
 
       {/* Statistics cards */}
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {loading
           ? Array.from({ length: 4 }).map((_, index) => (
               <Grid key={index} item xs={12} sm={6} lg={3}>
@@ -294,7 +294,7 @@ export function Dashboard() {
       </Grid>
 
       {/* Quick actions */}
-      <Stack spacing={3}>
+      <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography variant="h5" fontWeight={600}>
             Quick actions
@@ -303,7 +303,7 @@ export function Dashboard() {
             View all flows
           </Button>
         </Stack>
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {quickActions.map((action) => (
             <Grid key={action.title} item xs={12} sm={6} lg={3}>
               <Card

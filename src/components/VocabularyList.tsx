@@ -35,7 +35,7 @@ import type { Vocabulary, Category } from '../types';
 
 const ToolbarWrapper = styled(Box)(({ theme }) => ({
   borderRadius: theme.shape.borderRadius * 1.5,
-  padding: theme.spacing(3),
+  padding: theme.spacing(2),
   border: '1px solid rgba(255,255,255,0.06)',
   backgroundColor: 'rgba(20,24,32,0.8)',
 }));
@@ -44,7 +44,7 @@ const GridWrapper = styled(Box)(({ theme }) => ({
   borderRadius: theme.shape.borderRadius * 1.5,
   overflow: 'hidden',
   border: '1px solid rgba(255,255,255,0.05)',
-  backgroundColor: 'rgba(20,24,32,0.75)',
+  backgroundColor: '#000000',
   '& .MuiDataGrid-root': {
     border: 'none',
     color: theme.palette.text.primary,
@@ -59,7 +59,7 @@ const GridWrapper = styled(Box)(({ theme }) => ({
     borderBottom: '1px solid rgba(255,255,255,0.04)',
   },
   '& .MuiDataGrid-columnHeaders': {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#000000',
     borderBottom: '1px solid rgba(255,255,255,0.06)',
   },
 }));
@@ -161,12 +161,6 @@ export function VocabularyList() {
         ),
       },
       {
-        field: 'created_at',
-        headerName: 'Added',
-        width: 140,
-        valueFormatter: ({ value }) => new Date(value as string).toLocaleDateString(),
-      },
-      {
         field: 'actions',
         headerName: 'Actions',
         width: 140,
@@ -244,15 +238,29 @@ export function VocabularyList() {
   };
 
   return (
-    <Stack spacing={4}>
+    <Stack spacing={3}>
       {feedback && (
         <Alert severity={feedback.type} onClose={() => setFeedback(null)}>
           {feedback.message}
         </Alert>
       )}
 
+      <GridWrapper sx={{ height: 520 }}>
+        <DataGrid
+          rows={filteredRows}
+          columns={columns}
+          loading={loading}
+          disableRowSelectionOnClick
+          sx={{
+            '& .MuiDataGrid-cell:focus': {
+              outline: 'none',
+            },
+          }}
+        />
+      </GridWrapper>
+
       <ToolbarWrapper>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', md: 'center' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', md: 'center' }}>
           <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
             <Typography variant="h4" fontWeight={700}>
               Vocabulary hub
@@ -304,22 +312,8 @@ export function VocabularyList() {
         </Stack>
       </ToolbarWrapper>
 
-      <GridWrapper sx={{ height: 520 }}>
-        <DataGrid
-          rows={filteredRows}
-          columns={columns}
-          loading={loading}
-          disableRowSelectionOnClick
-          sx={{
-            '& .MuiDataGrid-cell:focus': {
-              outline: 'none',
-            },
-          }}
-        />
-      </GridWrapper>
-
-      <Box sx={{ p: 4, borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+      <Box sx={{ p: 3, borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
           <Stack spacing={0.5}>
             <Typography variant="h6" fontWeight={600}>
               Generate sentence variations

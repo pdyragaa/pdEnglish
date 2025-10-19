@@ -115,7 +115,7 @@ export function Categories() {
   };
 
   return (
-    <Stack spacing={4}>
+    <Stack spacing={3}>
       {feedback && (
         <Alert severity={feedback.type} onClose={() => setFeedback(null)}>
           {feedback.message}
@@ -123,8 +123,8 @@ export function Categories() {
       )}
 
       <Container>
-        <Box sx={{ p: { xs: 3, sm: 4 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
             <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
               <Typography variant="h4" fontWeight={700}>
                 Category library
@@ -153,7 +153,7 @@ export function Categories() {
           </Stack>
         </Box>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-        <Box sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
           {isLoading ? (
             <Stack spacing={2}>
               {[...Array(4)].map((_, index) => (
