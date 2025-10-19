@@ -199,6 +199,19 @@ export const db = {
 
   // Reviews
   reviews: {
+    async getAll(): Promise<Review[]> {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          vocabulary:vocabulary(*)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+
     async getByVocabularyId(vocabularyId: string): Promise<Review | null> {
       const { data, error } = await supabase
         .from('reviews')

@@ -31,6 +31,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTimeRounded';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
 
 import { db } from '../lib/supabase';
+import { backfillMissingReviews, getReviewStats } from '../lib/backfill-reviews';
 import type { Vocabulary } from '../types';
 
 const quickActions = [
@@ -92,6 +93,8 @@ interface Stats {
   totalCategories: number;
   wordsToday: number;
   practiceStreak: number;
+  reviewsDue: number;
+  missingReviews: number;
 }
 
 export function Dashboard() {
@@ -101,17 +104,22 @@ export function Dashboard() {
     totalCategories: 0,
     wordsToday: 0,
     practiceStreak: 0,
+    reviewsDue: 0,
+    missingReviews: 0,
   });
   const [recentWords, setRecentWords] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [vocabulary, categories] = await Promise.all([
+        const [vocabulary, categories, reviewStats] = await Promise.all([
           db.vocabulary.getAll(),
           db.categories.getAll(),
+          getReviewStats(),
         ]);
 
         const today = new Date().toDateString();
@@ -124,6 +132,8 @@ export function Dashboard() {
           totalCategories: categories.length,
           wordsToday,
           practiceStreak: Math.min(7, Math.floor(vocabulary.length / 15)),
+          reviewsDue: reviewStats.reviewsDue,
+          missingReviews: reviewStats.missingReviews,
         });
 
         setRecentWords(vocabulary.slice(0, 5));
@@ -134,6 +144,36 @@ export function Dashboard() {
 
     void load();
   }, []);
+
+  const handleSyncPracticeSystem = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    
+    try {
+      const result = await backfillMissingReviews();
+      
+      if (result.errors.length > 0) {
+        setSyncMessage(`Synced ${result.createdReviews} cards. ${result.errors.length} errors occurred.`);
+      } else {
+        setSyncMessage(`Successfully synced ${result.createdReviews} cards to practice system!`);
+      }
+      
+      // Reload stats
+      const reviewStats = await getReviewStats();
+      setStats(prev => ({
+        ...prev,
+        reviewsDue: reviewStats.reviewsDue,
+        missingReviews: reviewStats.missingReviews,
+      }));
+      
+      setTimeout(() => setSyncMessage(null), 5000);
+    } catch (error) {
+      setSyncMessage(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setSyncMessage(null), 5000);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const progressItems = useMemo(
     () => [
@@ -242,6 +282,54 @@ export function Dashboard() {
           </Card>
         </Stack>
       </HeroGradient>
+
+      {/* Sync Practice System */}
+      {stats.missingReviews > 0 && (
+        <Card sx={{ border: '1px solid rgba(255,193,7,0.3)', bgcolor: 'rgba(255,193,7,0.05)' }}>
+          <CardContent sx={{ p: 3 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Stack spacing={1}>
+                <Typography variant="h6" fontWeight={600} color="warning.main">
+                  Practice System Sync Needed
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {stats.missingReviews} vocabulary items need to be synced with the practice system.
+                </Typography>
+              </Stack>
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={handleSyncPracticeSystem}
+                disabled={syncing}
+                startIcon={syncing ? <AutoAwesomeIcon /> : <PsychologyIcon />}
+              >
+                {syncing ? 'Syncing...' : 'Sync Practice System'}
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sync Message */}
+      {syncMessage && (
+        <Card sx={{ 
+          border: syncMessage.includes('Successfully') 
+            ? '1px solid rgba(76,175,80,0.3)' 
+            : '1px solid rgba(244,67,54,0.3)',
+          bgcolor: syncMessage.includes('Successfully') 
+            ? 'rgba(76,175,80,0.05)' 
+            : 'rgba(244,67,54,0.05)'
+        }}>
+          <CardContent sx={{ p: 2 }}>
+            <Typography 
+              variant="body2" 
+              color={syncMessage.includes('Successfully') ? 'success.main' : 'error.main'}
+            >
+              {syncMessage}
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics cards */}
       <Grid container spacing={2}>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Flashcard } from './Flashcard';
 import { db } from '../lib/supabase';
 import { calculateSM2, getInitialReview } from '../lib/spaced-repetition';
+import { getReviewStats } from '../lib/backfill-reviews';
 import { useVocabularyStore } from '../store/useVocabularyStore';
 import type { QualityRating } from '../types';
 
@@ -15,6 +16,12 @@ export function ReviewSession() {
     total: 0,
     completed: 0,
     correct: 0
+  });
+  const [reviewStats, setReviewStats] = useState({
+    totalVocabulary: 0,
+    totalReviews: 0,
+    reviewsDue: 0,
+    missingReviews: 0
   });
 
   const {
@@ -33,7 +40,17 @@ export function ReviewSession() {
 
   useEffect(() => {
     loadDueReviews();
+    loadReviewStats();
   }, []);
+
+  const loadReviewStats = async () => {
+    try {
+      const stats = await getReviewStats();
+      setReviewStats(stats);
+    } catch (error) {
+      console.error('Failed to load review stats:', error);
+    }
+  };
 
   const loadDueReviews = async () => {
     setIsLoading(true);
@@ -222,7 +239,7 @@ export function ReviewSession() {
 
   if (currentSession.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -242,6 +259,50 @@ export function ReviewSession() {
                 Check for New Reviews
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Debug Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Practice System Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="font-medium text-gray-700">Total Vocabulary</div>
+                <div className="text-2xl font-bold text-blue-600">{reviewStats.totalVocabulary}</div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-700">Review Cards</div>
+                <div className="text-2xl font-bold text-green-600">{reviewStats.totalReviews}</div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-700">Cards Due</div>
+                <div className="text-2xl font-bold text-orange-600">{reviewStats.reviewsDue}</div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-700">Missing Reviews</div>
+                <div className="text-2xl font-bold text-red-600">{reviewStats.missingReviews}</div>
+              </div>
+            </div>
+            
+            {reviewStats.missingReviews > 0 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="text-sm text-yellow-800">
+                  <strong>Action needed:</strong> {reviewStats.missingReviews} vocabulary items need to be synced with the practice system. 
+                  Go to the Dashboard and click "Sync Practice System" to fix this.
+                </div>
+              </div>
+            )}
+            
+            {reviewStats.totalVocabulary === 0 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-blue-800">
+                  <strong>Get started:</strong> Add some vocabulary using the Translator to begin practicing!
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
