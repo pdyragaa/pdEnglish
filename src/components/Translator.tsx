@@ -27,6 +27,7 @@ export function Translator() {
   const [wordInfo, setWordInfo] = useState<WordInfo | null>(null);
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
   const [showMoreInfo, setShowMoreInfo] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const { selectedLanguage, setSelectedLanguage, setError, error } = useVocabularyStore();
 
@@ -99,6 +100,7 @@ export function Translator() {
     setSaveMessage(null);
     setWordInfo(null);
     setShowMoreInfo(false);
+    setIsSaved(false);
 
     try {
       const result =
@@ -107,7 +109,6 @@ export function Translator() {
           : await translatePolishToEnglish(inputText);
 
       setTranslatedText(result);
-      await autoSaveToVocabulary(inputText, result);
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -119,7 +120,7 @@ export function Translator() {
     }
   };
 
-  const autoSaveToVocabulary = async (originalText: string, translation: string) => {
+  const saveToVocabulary = async (originalText: string, translation: string) => {
     if (!defaultCategoryId) return;
 
     try {
@@ -142,7 +143,8 @@ export function Translator() {
       };
 
       await db.vocabulary.create(vocabulary);
-      setSaveMessage('Saved to vocabulary automatically!');
+      setSaveMessage('Saved to vocabulary!');
+      setIsSaved(true);
       setTimeout(() => setSaveMessage(null), 2500);
     } catch (err) {
       console.error('Failed to auto-save vocabulary:', err);
@@ -201,15 +203,14 @@ export function Translator() {
           </Button>
           <Button
             variant="outlined"
-            onClick={() => {
-              // Auto-save functionality is already handled in handleTranslate
-              setSaveMessage('Already saved to vocabulary!');
-              setTimeout(() => setSaveMessage(null), 2000);
+            onClick={async () => {
+              if (!inputText.trim() || !translatedText.trim()) return;
+              await saveToVocabulary(inputText, translatedText);
             }}
-            disabled={!translatedText}
+            disabled={!translatedText || isSaved}
             size="small"
           >
-            Save
+            {isSaved ? 'Saved' : 'Save'}
           </Button>
         </Stack>
 
