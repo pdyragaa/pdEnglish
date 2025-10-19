@@ -15,6 +15,7 @@ import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import { translatePolishToEnglish, translateEnglishToPolish } from '../lib/translate';
+import { generateWordInfo, type WordInfo } from '../lib/deepseek';
 import { db } from '../lib/supabase';
 import { useVocabularyStore } from '../store/useVocabularyStore';
 
@@ -25,6 +26,9 @@ export function Translator() {
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [wordInfo, setWordInfo] = useState<WordInfo | null>(null);
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
 
   const { selectedLanguage, setSelectedLanguage, setError, error } = useVocabularyStore();
 
@@ -68,6 +72,37 @@ export function Translator() {
     }
   };
 
+  const handleShowMoreInfo = async () => {
+    if (!inputText.trim() || !translatedText.trim()) return;
+    
+    // Check if input is a single word (no spaces)
+    if (inputText.trim().includes(' ')) {
+      setError('Word info is only available for single words, not phrases');
+      return;
+    }
+
+    setIsLoadingInfo(true);
+    setError(null);
+    setWordInfo(null);
+
+    try {
+      const word = selectedLanguage === 'en' ? inputText.trim() : translatedText.trim();
+      const polishTranslation = selectedLanguage === 'en' ? translatedText.trim() : inputText.trim();
+      
+      const info = await generateWordInfo(word, polishTranslation);
+      setWordInfo(info);
+      setShowMoreInfo(true);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to load word information');
+      }
+    } finally {
+      setIsLoadingInfo(false);
+    }
+  };
+
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
@@ -75,6 +110,8 @@ export function Translator() {
     setIsTranslating(true);
     setError(null);
     setSaveMessage(null);
+    setWordInfo(null);
+    setShowMoreInfo(false);
 
     try {
       const result =
@@ -193,6 +230,19 @@ export function Translator() {
               </Button>
             </Stack>
 
+            {translatedText && !inputText.trim().includes(' ') && (
+              <Button
+                variant="outlined"
+                onClick={handleShowMoreInfo}
+                disabled={isLoadingInfo}
+                startIcon={<AutoAwesomeRoundedIcon fontSize="small" />}
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                {isLoadingInfo ? 'Loading…' : 'Show More Info'}
+              </Button>
+            )}
+
             {translatedText && (
               <Fade in timeout={300}>
                 <Box sx={{ p: 2, bgcolor: 'rgba(63,214,193,0.08)', borderRadius: 2, border: '1px solid rgba(63,214,193,0.2)' }}>
@@ -216,6 +266,50 @@ export function Translator() {
               <Alert severity="error" sx={{ mt: 1 }}>
                 {error}
               </Alert>
+            )}
+
+            {wordInfo && showMoreInfo && (
+              <Fade in timeout={300}>
+                <Box sx={{ mt: 2 }}>
+                  {/* Definition Section */}
+                  <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)', bgcolor: 'rgba(20,24,32,0.8)' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <Typography variant="h6" sx={{ color: 'primary.light' }}>📖</Typography>
+                      <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                        Definicja:
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body1" color="text.secondary">
+                      {wordInfo.definition}
+                    </Typography>
+                  </Paper>
+
+                  {/* Examples Section */}
+                  <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)', bgcolor: 'rgba(20,24,32,0.8)' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ color: 'primary.light' }}>💬</Typography>
+                      <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                        Przykłady:
+                      </Typography>
+                    </Stack>
+                    <Stack spacing={2}>
+                      {wordInfo.examples.map((example, index) => (
+                        <Box key={index} sx={{ p: 1.5, bgcolor: 'rgba(63,214,193,0.05)', borderRadius: 1, border: '1px solid rgba(63,214,193,0.1)' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                            {index + 1}.
+                          </Typography>
+                          <Typography variant="body1" fontWeight={500} sx={{ mb: 0.5 }}>
+                            {example.english}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {example.polish}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Paper>
+                </Box>
+              </Fade>
             )}
           </Stack>
         </Paper>
