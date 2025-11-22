@@ -1,38 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
-  Box,
-  BottomNavigation,
-  BottomNavigationAction,
-  Divider,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Stack,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import DashboardIcon from '@mui/icons-material/DashboardRounded';
-import TranslateIcon from '@mui/icons-material/TranslateRounded';
-import LibraryBooksIcon from '@mui/icons-material/LibraryBooksRounded';
-import PsychologyIcon from '@mui/icons-material/PsychologyRounded';
-import CategoryIcon from '@mui/icons-material/CategoryRounded';
-import InsightsIcon from '@mui/icons-material/InsightsRounded';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
-
-const drawerWidth = 240;
+  LayoutDashboard,
+  Languages,
+  Book,
+  GraduationCap,
+  Sparkles,
+  Menu,
+  X,
+  Maximize2,
+  Minimize2
+} from 'lucide-react';
+import { cn } from '../lib/utils';
+import { Button } from './ui/Button';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: <DashboardIcon fontSize="small" /> },
-  { name: 'Translator', href: '/translator', icon: <TranslateIcon fontSize="small" /> },
-  { name: 'Vocabulary', href: '/vocabulary', icon: <LibraryBooksIcon fontSize="small" /> },
-  { name: 'Sentences', href: '/sentences', icon: <AutoAwesomeIcon fontSize="small" /> },
-  { name: 'Practice', href: '/practice', icon: <PsychologyIcon fontSize="small" /> },
-  { name: 'Categories', href: '/categories', icon: <CategoryIcon fontSize="small" /> },
-  { name: 'Stats', href: '/stats', icon: <InsightsIcon fontSize="small" /> },
+  { name: 'Translator', href: '/translator', icon: Languages },
+  { name: 'Vocabulary', href: '/vocabulary', icon: Book },
+  { name: 'Review', href: '/review', icon: GraduationCap },
+  { name: 'Sentences', href: '/sentences', icon: Sparkles },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 ];
 
 interface LayoutProps {
@@ -41,138 +28,143 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
-  const [open, setOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
 
-  const drawer = (
-    <Stack spacing={2} sx={{ height: '100%', p: 2 }}>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.15),
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Typography variant="subtitle1" color="primary" fontWeight={700}>
-            pd
-          </Typography>
-        </Box>
-        <Typography variant="h6" fontWeight={700}>
-          pdEnglish
-        </Typography>
-      </Stack>
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle Focus Mode with Cmd+Shift+F
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+        e.preventDefault();
+        setFocusMode(prev => !prev);
+      }
+    };
 
-      <Divider sx={{ borderColor: alpha(theme.palette.common.white, 0.06) }} />
-
-      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-        <List disablePadding>
-          {navigation.map((item) => {
-            const active = location.pathname === item.href;
-            return (
-              <ListItemButton
-                key={item.href}
-                component={RouterLink}
-                to={item.href}
-                onClick={() => !isDesktop && setOpen(false)}
-                selected={active}
-                sx={{
-                  borderRadius: 1.5,
-                  mb: 0.25,
-                  px: 1.5,
-                  py: 0.75,
-                  '&.Mui-selected': {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.16),
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.primary.main, 0.24),
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 32, color: active ? 'primary.main' : 'text.secondary' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.name}
-                  primaryTypographyProps={{
-                    fontWeight: active ? 600 : 500,
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </ListItemButton>
-            );
-          })}
-        </List>
-      </Box>
-    </Stack>
-  );
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#000000' }}>
-      <Box
-        component="nav"
-        sx={{ width: { lg: drawerWidth }, flexShrink: { lg: 0 } }}
-        aria-label="navigation"
-      >
-        <Drawer
-          variant={isDesktop ? 'permanent' : 'temporary'}
-          open={isDesktop ? true : open}
-          onClose={() => setOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            '& .MuiDrawer-paper': {
-              width: drawerWidth,
-              boxSizing: 'border-box',
-              backgroundImage: 'none',
-              px: 0,
-            },
-          }}
+    <div className="min-h-screen bg-background flex transition-colors duration-500">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      {!focusMode && (
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 bg-card/50 backdrop-blur-xl border-r border-white/5 transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto lg:flex lg:flex-col",
+            sidebarOpen ? "translate-x-0 w-72" : "-translate-x-full lg:translate-x-0",
+            'w-72' // Always show full width
+          )}
+        // onMouseEnter={() => setIsHovered(true)} // Removed hover functionality
+        // onMouseLeave={() => setIsHovered(false)} // Removed hover functionality
         >
-          {drawer}
-        </Drawer>
-      </Box>
+          {/* Logo */}
+          <div className="flex items-center gap-3 px-6 h-16 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
+                <Languages className="w-6 h-6 text-white" />
+              </div>
+              <span className="font-bold text-lg">Vocabulary App</span>
+            </div>
 
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          width: '100%',
-          p: { xs: 1, sm: 2, lg: 2 },
-          pb: { xs: 8, lg: 2 },
-          minHeight: '100vh',
-        }}
-      >
-        <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>{children}</Box>
-      </Box>
+            {/* Close button - mobile only */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-lg hover:bg-white/5"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
 
-      <BottomNavigation
-        value={location.pathname}
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          display: { xs: 'flex', lg: 'none' },
-          backgroundColor: '#000000',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        {navigation.map((item) => (
-          <BottomNavigationAction
-            key={item.href}
-            label={item.name}
-            value={item.href}
-            icon={item.icon}
-            component={RouterLink}
-            to={item.href}
-          />
-        ))}
-      </BottomNavigation>
-    </Box>
+          {/* Navigation */}
+          <nav className="flex-1 px-3 py-6 space-y-1">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <RouterLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  )}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  <span>{item.name}</span>
+                </RouterLink>
+              );
+            })}
+          </nav>
+
+          {/* Footer Actions */}
+          <div className="px-3 pb-6 border-t border-white/5 pt-4">
+            {/* Focus Mode Toggle */}
+            <button
+              onClick={() => setFocusMode(!focusMode)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all duration-200 w-full"
+              title="Toggle Focus Mode (Cmd+Shift+F)"
+            >
+              <Maximize2 className="w-5 h-5 shrink-0" />
+              <span>Focus Mode</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Focus Mode Exit Button */}
+        {focusMode && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setFocusMode(false)}
+            className="absolute top-4 left-4 z-50 bg-background/50 backdrop-blur-md border border-white/10 hover:bg-background/80 text-muted-foreground hover:text-primary transition-all"
+            title="Exit Focus Mode"
+          >
+            <Minimize2 className="w-5 h-5" />
+          </Button>
+        )}
+
+        {/* Mobile Header */}
+        <div className={cn(
+          "lg:hidden flex items-center justify-between h-16 px-4 border-b border-white/5 bg-card/50 backdrop-blur-xl sticky top-0 z-30",
+          focusMode ? "hidden" : ""
+        )}>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="-ml-2 text-muted-foreground hover:text-foreground"
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth">
+          <div className={cn(
+            "mx-auto space-y-8 animate-in fade-in duration-500 transition-all",
+            focusMode ? "max-w-5xl" : "max-w-7xl"
+          )}>
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
   );
 }

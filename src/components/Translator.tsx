@@ -1,44 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
-  Alert,
-  Box,
-  Button,
-  Fade,
-  Paper,
-  Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
-import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
-import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+  ArrowRightLeft,
+  Check,
+  AlertCircle,
+  BookOpen,
+  MessageSquare,
+  Save,
+  X,
+  Loader2
+} from 'lucide-react';
 import { translatePolishToEnglish, translateEnglishToPolish } from '../lib/translate';
 import { generateWordInfo, type WordInfo } from '../lib/deepseek';
 import { db } from '../lib/supabase';
 import { useVocabularyStore } from '../store/useVocabularyStore';
-import { getInitialReview } from '../lib/spaced-repetition';
+import type { Category, TranslationResult } from '../types';
+import { Button } from './ui/Button';
+import { Card, CardContent } from './ui/Card';
+import { cn } from '../lib/utils';
 
 export function Translator() {
   const [inputText, setInputText] = useState('');
-  const [translatedText, setTranslatedText] = useState('');
+  const [translatedText, setTranslatedText] = useState<TranslationResult | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [defaultCategoryId, setDefaultCategoryId] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [wordInfo, setWordInfo] = useState<WordInfo | null>(null);
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
-  const [showMoreInfo, setShowMoreInfo] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [_categories, setCategories] = useState<Category[]>([]);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { selectedLanguage, setSelectedLanguage, setError, error } = useVocabularyStore();
+
+  // Auto-focus input on load
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const ensureDefaultCategory = async () => {
       try {
-        const categories = await db.categories.getAll();
-        let generalCategory = categories.find((cat) => cat.name === 'General');
+        const loadedCategories = await db.categories.getAll();
+        setCategories(loadedCategories);
+
+        let generalCategory = loadedCategories.find((cat) => cat.name === 'General');
         if (!generalCategory) {
           generalCategory = await db.categories.create('General');
+          setCategories((prev: Category[]) => [generalCategory!, ...prev]);
         }
         setDefaultCategoryId(generalCategory.id);
       } catch (err) {
@@ -50,44 +58,41 @@ export function Translator() {
     void ensureDefaultCategory();
   }, [setError]);
 
+  // Instant Context: Auto-fetch word info when translation completes
+  useEffect(() => {
+    if (translatedText && inputText.trim().split(/\s+/).length <= 4) {
+      handleShowMoreInfo();
+    }
+  }, [translatedText]);
 
-  const handleDirectionChange = (_: React.MouseEvent<HTMLElement>, value: 'pl' | 'en' | null) => {
-    if (!value || value === selectedLanguage) return;
-    setSelectedLanguage(value);
-    // Swap fields for convenience
-    setInputText(translatedText);
-    setTranslatedText('');
-    setSaveMessage(null);
+  const handleDirectionChange = (lang: 'pl' | 'en') => {
+    if (lang === selectedLanguage) return;
+    setSelectedLanguage(lang);
+    setInputText(translatedText?.main || '');
+    setTranslatedText(null);
     setError(null);
+    setWordInfo(null);
+    setIsSaved(false);
+    inputRef.current?.focus();
   };
 
   const handleShowMoreInfo = async () => {
-    if (!inputText.trim() || !translatedText.trim()) return;
-    
-    // Check if input is 1-4 words (support single words and phrasal verbs)
+    if (!inputText.trim() || !translatedText?.main) return;
+
     const wordCount = inputText.trim().split(/\s+/).length;
-    if (wordCount > 4) {
-      setError('Word info is only available for words and short phrases (up to 4 words)');
-      return;
-    }
+    if (wordCount > 4) return;
 
     setIsLoadingInfo(true);
-    setError(null);
     setWordInfo(null);
 
     try {
-      const word = selectedLanguage === 'en' ? inputText.trim() : translatedText.trim();
-      const polishTranslation = selectedLanguage === 'en' ? translatedText.trim() : inputText.trim();
-      
+      const word = selectedLanguage === 'en' ? inputText.trim() : translatedText.main;
+      const polishTranslation = selectedLanguage === 'en' ? translatedText.main : inputText.trim();
+
       const info = await generateWordInfo(word, polishTranslation);
       setWordInfo(info);
-      setShowMoreInfo(true);
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to load word information');
-      }
+      console.error("Failed to load word info", err);
     } finally {
       setIsLoadingInfo(false);
     }
@@ -98,9 +103,7 @@ export function Translator() {
 
     setIsTranslating(true);
     setError(null);
-    setSaveMessage(null);
     setWordInfo(null);
-    setShowMoreInfo(false);
     setIsSaved(false);
 
     try {
@@ -121,194 +124,221 @@ export function Translator() {
     }
   };
 
-  const saveToVocabulary = async (originalText: string, translation: string) => {
-    if (!defaultCategoryId) return;
+  // Smart Save: Quick save to default category
+  const handleSmartSave = async () => {
+    if (!translatedText || !defaultCategoryId) return;
 
     try {
       const existingVocabulary = await db.vocabulary.getAll();
       const alreadyExists = existingVocabulary.some(
         (vocab) =>
-          (vocab.polish === originalText && vocab.english === translation) ||
-          (vocab.polish === translation && vocab.english === originalText)
+          (vocab.polish === inputText && vocab.english === translatedText.main) ||
+          (vocab.polish === translatedText.main && vocab.english === inputText)
       );
 
       if (alreadyExists) {
-        setSaveMessage('Word already exists in vocabulary');
+        setError('Word already exists in vocabulary');
         return;
       }
 
       const vocabulary = {
-        polish: selectedLanguage === 'en' ? translation : originalText,
-        english: selectedLanguage === 'en' ? originalText : translation,
+        polish: selectedLanguage === 'en' ? translatedText.main : inputText,
+        english: selectedLanguage === 'en' ? inputText : translatedText.main,
         category_id: defaultCategoryId,
+        priority: 2, // Default priority
       };
 
-      const newVocabulary = await db.vocabulary.create(vocabulary);
-      
-      // Automatically create a review entry for spaced repetition
-      try {
-        const initialReview = getInitialReview();
-        await db.reviews.create({
-          vocabulary_id: newVocabulary.id,
-          ease_factor: initialReview.easeFactor,
-          interval: initialReview.interval,
-          repetitions: initialReview.repetitions,
-          next_review: initialReview.nextReview?.toISOString() || null,
-          last_reviewed: null
-        });
-      } catch (reviewError) {
-        console.warn('Failed to create review entry:', reviewError);
-        // Don't fail the vocabulary save if review creation fails
-      }
-      
-      setSaveMessage('Saved to vocabulary!');
+      await db.vocabulary.create(vocabulary);
       setIsSaved(true);
-      setTimeout(() => setSaveMessage(null), 2500);
     } catch (err) {
       console.error('Failed to auto-save vocabulary:', err);
-      setSaveMessage('Failed to save to vocabulary');
+      setError('Failed to save to vocabulary');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      handleTranslate();
+    }
+    if (e.key === 'Escape') {
+      setInputText('');
+      setTranslatedText(null);
+      setWordInfo(null);
+      inputRef.current?.focus();
     }
   };
 
   return (
-    <Fade in timeout={500}>
-      <Stack spacing={3} sx={{ backgroundColor: '#000000', p: 2 }}>
-        <ToggleButtonGroup value={selectedLanguage} exclusive onChange={handleDirectionChange} color="primary" size="small">
-          <ToggleButton value="pl">🇵🇱 PL→EN</ToggleButton>
-          <ToggleButton value="en">🇬🇧 EN→PL</ToggleButton>
-        </ToggleButtonGroup>
+    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500">
+      {/* Language Toggle (Minimalist) */}
+      <div className="flex justify-center">
+        <div className="flex gap-2 p-1 bg-white/5 rounded-full border border-white/10">
+          <button
+            onClick={() => handleDirectionChange('pl')}
+            className={cn(
+              "px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2",
+              selectedLanguage === 'pl'
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span className="text-xs opacity-70">Input:</span> Polski
+          </button>
+          <button
+            onClick={() => handleDirectionChange('en')}
+            className={cn(
+              "px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2",
+              selectedLanguage === 'en'
+                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span className="text-xs opacity-70">Input:</span> English
+          </button>
+        </div>
+      </div>
 
-        <TextField
-          variant="standard"
+      {/* Input Area */}
+      <div className="relative group">
+        <textarea
+          ref={inputRef}
           placeholder={selectedLanguage === 'pl' ? 'Wpisz polskie zdanie…' : 'Enter English sentence…'}
           value={inputText}
           onChange={(event) => setInputText(event.target.value)}
-          multiline
-          minRows={3}
-          maxRows={5}
-          fullWidth
-          InputProps={{
-            style: { fontSize: '1.6rem' }
-          }}
-          sx={{
-            '& .MuiInput-underline:before': {
-              borderBottomColor: 'rgba(255,255,255,0.3)',
-            },
-            '& .MuiInput-underline:after': {
-              borderBottomColor: 'primary.main',
-            },
-            '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
-              borderBottomColor: 'rgba(255,255,255,0.5)',
-            },
-          }}
+          onKeyDown={handleKeyDown}
+          className="w-full min-h-[160px] bg-transparent text-3xl md:text-4xl font-medium placeholder:text-muted-foreground/30 border-b border-white/10 focus:border-primary focus:outline-none resize-none py-8 transition-colors leading-tight"
         />
+        <div className="absolute bottom-4 right-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+          Cmd + Enter to translate
+        </div>
+      </div>
 
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Button
-            variant="contained"
-            onClick={handleTranslate}
-            disabled={!inputText.trim() || isTranslating}
-            startIcon={<SwapHorizRoundedIcon />}
-            size="medium"
-            sx={{ flex: 1 }}
-          >
-            {isTranslating ? 'Translating…' : 'Translate'}
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={async () => {
-              if (!inputText.trim() || !translatedText.trim()) return;
-              await saveToVocabulary(inputText, translatedText);
-            }}
-            disabled={!translatedText || isSaved}
-            size="small"
-          >
-            {isSaved ? 'Saved' : 'Save'}
-          </Button>
-        </Stack>
+      {/* Actions */}
+      <div className="flex items-center gap-4">
+        <Button
+          onClick={handleTranslate}
+          disabled={!inputText.trim() || isTranslating}
+          className="flex-1 h-14 text-lg rounded-xl shadow-lg shadow-primary/10"
+        >
+          {isTranslating ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Translating...
+            </>
+          ) : (
+            <>
+              Translate <ArrowRightLeft className="w-5 h-5 ml-2" />
+            </>
+          )}
+        </Button>
+      </div>
 
-        {translatedText && inputText.trim().split(/\s+/).length <= 4 && (
-          <Button
-            variant="outlined"
-            onClick={handleShowMoreInfo}
-            disabled={isLoadingInfo}
-            startIcon={<AutoAwesomeRoundedIcon fontSize="small" />}
-            size="small"
-            sx={{ alignSelf: 'flex-start' }}
-          >
-            {isLoadingInfo ? 'Loading…' : 'Show More Info'}
-          </Button>
-        )}
+      {/* Translation Result */}
+      {translatedText && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="relative">
+            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-transparent rounded-full" />
+            <div className="pl-6 space-y-2">
+              <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
+                Translation
+              </p>
+              <h2 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
+                {translatedText.main}
+              </h2>
 
-        {translatedText && (
-          <Fade in timeout={300}>
-            <Box sx={{ p: 2, bgcolor: 'rgba(63,214,193,0.08)', borderRadius: 2, border: '1px solid rgba(63,214,193,0.2)' }}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                {selectedLanguage === 'pl' ? 'English translation:' : 'Polish translation:'}
-              </Typography>
-              <Typography variant="h6" fontWeight={600}>
-                {translatedText}
-              </Typography>
-            </Box>
-          </Fade>
-        )}
-
-        {saveMessage && (
-          <Alert severity={saveMessage.includes('Saved') ? 'success' : 'warning'} sx={{ mt: 1 }}>
-            {saveMessage}
-          </Alert>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            {error}
-          </Alert>
-        )}
-
-        {wordInfo && showMoreInfo && (
-          <Fade in timeout={300}>
-            <Box sx={{ mt: 2 }}>
-              {/* Definition Section */}
-              <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)', bgcolor: 'rgba(20,24,32,0.8)' }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Typography variant="h6" sx={{ color: 'primary.light' }}>📖</Typography>
-                  <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                    Definicja:
-                  </Typography>
-                </Stack>
-                <Typography variant="body1" color="text.secondary">
-                  {wordInfo.definition}
-                </Typography>
-              </Paper>
-
-              {/* Examples Section */}
-              <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)', bgcolor: 'rgba(20,24,32,0.8)' }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                  <Typography variant="h6" sx={{ color: 'primary.light' }}>💬</Typography>
-                  <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                    Przykłady:
-                  </Typography>
-                </Stack>
-                <Stack spacing={2}>
-                  {wordInfo.examples.map((example, index) => (
-                    <Box key={index} sx={{ p: 1.5, bgcolor: 'rgba(63,214,193,0.05)', borderRadius: 1, border: '1px solid rgba(63,214,193,0.1)' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        {index + 1}.
-                      </Typography>
-                      <Typography variant="body1" fontWeight={500} sx={{ mb: 0.5 }}>
-                        {example.english}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {example.polish}
-                      </Typography>
-                    </Box>
+              {translatedText.alternatives.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4 pt-2">
+                  {translatedText.alternatives.map((alt, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-muted-foreground text-sm hover:bg-white/10 transition-colors cursor-default"
+                    >
+                      {alt}
+                    </span>
                   ))}
-                </Stack>
-              </Paper>
-            </Box>
-          </Fade>
-        )}
-      </Stack>
-    </Fade>
+                </div>
+              )}
+            </div>
+
+            {/* Smart Save Button */}
+            <div className="absolute top-0 right-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSmartSave}
+                disabled={isSaved}
+                className={cn(
+                  "h-10 px-4 transition-all duration-300",
+                  isSaved ? "text-emerald-500 bg-emerald-500/10" : "text-muted-foreground hover:text-primary"
+                )}
+              >
+                {isSaved ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" /> Saved
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" /> Quick Save
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* AI Insights (Instant Context) */}
+          {(isLoadingInfo || wordInfo) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+              {isLoadingInfo ? (
+                <>
+                  <div className="h-32 rounded-2xl bg-card/50 animate-pulse" />
+                  <div className="h-32 rounded-2xl bg-card/50 animate-pulse" />
+                </>
+              ) : wordInfo ? (
+                <>
+                  <Card className="bg-card/30 border-white/5 hover:bg-card/50 transition-colors">
+                    <CardContent className="p-6 space-y-3">
+                      <div className="flex items-center gap-2 text-primary mb-1">
+                        <BookOpen className="w-4 h-4" />
+                        <h3 className="font-semibold text-sm uppercase tracking-wider">Definition</h3>
+                      </div>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {wordInfo.definition}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-card/30 border-white/5 hover:bg-card/50 transition-colors">
+                    <CardContent className="p-6 space-y-3">
+                      <div className="flex items-center gap-2 text-primary mb-1">
+                        <MessageSquare className="w-4 h-4" />
+                        <h3 className="font-semibold text-sm uppercase tracking-wider">Context</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {wordInfo.examples.slice(0, 2).map((example, index) => (
+                          <div key={index} className="space-y-1">
+                            <p className="font-medium text-foreground">{example.english}</p>
+                            <p className="text-xs text-muted-foreground">{example.polish}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {error && (
+        <div className="fixed bottom-6 right-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 z-50 backdrop-blur-md">
+          <AlertCircle className="w-5 h-5" />
+          <p className="font-medium">{error}</p>
+          <button onClick={() => setError(null)} className="ml-2 hover:opacity-70">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

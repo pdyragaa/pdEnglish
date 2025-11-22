@@ -1,14 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CssBaseline, ThemeProvider } from '@mui/material';
 import App from './App.tsx';
-import theme from './theme.ts';
+import ErrorBoundary from './components/ErrorBoundary';
+import './index.css';
+
+console.log('🚀 Main.tsx loaded');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ErrorBoundary>
       <App />
-    </ThemeProvider>
+    </ErrorBoundary>
   </StrictMode>
 );

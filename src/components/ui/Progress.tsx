@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
 interface ProgressProps {
@@ -8,7 +7,6 @@ interface ProgressProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'success' | 'warning' | 'error';
   showValue?: boolean;
-  animated?: boolean;
 }
 
 const sizeClasses = {
@@ -31,7 +29,6 @@ export function Progress({
   size = 'md',
   variant = 'default',
   showValue = false,
-  animated = true,
 }: ProgressProps) {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
 
@@ -50,17 +47,12 @@ export function Progress({
         'w-full bg-muted rounded-full overflow-hidden',
         sizeClasses[size]
       )}>
-        <motion.div
+        <div
           className={cn(
-            'h-full rounded-full transition-colors duration-300',
+            'h-full rounded-full transition-all duration-300',
             variantClasses[variant]
           )}
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={animated ? {
-            duration: 0.8,
-            ease: 'easeOut',
-          } : { duration: 0 }}
+          style={{ width: `${percentage}%` }}
         />
       </div>
       
@@ -84,7 +76,6 @@ interface CircularProgressProps {
   className?: string;
   variant?: 'default' | 'success' | 'warning' | 'error';
   showValue?: boolean;
-  animated?: boolean;
 }
 
 export function CircularProgress({
@@ -95,7 +86,6 @@ export function CircularProgress({
   className,
   variant = 'default',
   showValue = false,
-  animated = true,
 }: CircularProgressProps) {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
   const radius = (size - strokeWidth) / 2;
@@ -126,7 +116,7 @@ export function CircularProgress({
           fill="none"
           className="text-muted"
         />
-        <motion.circle
+        <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -134,17 +124,11 @@ export function CircularProgress({
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
-          className={colorClasses[variant]}
+          className={cn(colorClasses[variant], 'transition-all duration-300')}
           style={{
             strokeDasharray,
-            strokeDashoffset: animated ? circumference : strokeDashoffset,
+            strokeDashoffset,
           }}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset }}
-          transition={animated ? {
-            duration: 0.8,
-            ease: 'easeOut',
-          } : { duration: 0 }}
         />
       </svg>
       

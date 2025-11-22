@@ -55,8 +55,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'No translation received from DeepL API' });
     }
 
+    // Return main translation - alternatives will be generated client-side
     res.status(200).json({ 
-      translatedText: data.translations[0].text 
+      translatedText: data.translations[0].text,
+      main: data.translations[0].text
     });
 
   } catch (error) {

@@ -1,62 +1,23 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-  InputAdornment,
-} from '@mui/material';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { styled } from '@mui/material/styles';
-import EditRoundedIcon from '@mui/icons-material/EditRounded';
-import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
-import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
-import FilterAltRoundedIcon from '@mui/icons-material/FilterAltRounded';
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import BookRoundedIcon from '@mui/icons-material/BookRounded';
-
+  Sparkles,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Volume2,
+  Copy,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  X
+} from 'lucide-react';
 import { db } from '../lib/supabase';
 import type { Sentence, Vocabulary, Category } from '../types';
-
-const ToolbarWrapper = styled(Box)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius * 1.5,
-  padding: theme.spacing(3),
-  border: '1px solid rgba(255,255,255,0.06)',
-  backgroundColor: 'rgba(20,24,32,0.8)',
-}));
-
-const GridWrapper = styled(Box)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius * 1.5,
-  overflow: 'hidden',
-  border: '1px solid rgba(255,255,255,0.05)',
-  backgroundColor: 'rgba(20,24,32,0.75)',
-  '& .MuiDataGrid-root': {
-    border: 'none',
-    color: theme.palette.text.primary,
-    '--DataGrid-containerBackground': 'transparent',
-  },
-  '& .MuiDataGrid-row': {
-    '&.Mui-selected': {
-      backgroundColor: 'rgba(63,214,193,0.12)',
-    },
-  },
-  '& .MuiDataGrid-cell': {
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
-  },
-  '& .MuiDataGrid-columnHeaders': {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-  },
-}));
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Modal } from './ui/Modal';
+import { cn } from '../lib/utils';
 
 interface SentenceWithVocabulary extends Sentence {
   vocabulary?: Vocabulary & { category?: Category };
@@ -77,6 +38,9 @@ export function Sentences() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // UX Features
+  const [clozeMode, setClozeMode] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -89,7 +53,7 @@ export function Sentences() {
         setVocabulary(vocabularyData);
       } catch (error) {
         console.error(error);
-        setFeedback({ type: 'error', message: 'Failed to load sentences. Please try again.' });
+        setFeedback({ type: 'error', message: 'Failed to load sentences.' });
       } finally {
         setLoading(false);
       }
@@ -98,7 +62,7 @@ export function Sentences() {
     void load();
   }, []);
 
-  const filteredRows = useMemo(() => {
+  const filteredSentences = useMemo(() => {
     return sentences
       .filter((item) => (selectedVocabulary ? item.vocabulary_id === selectedVocabulary : true))
       .filter((item) => {
@@ -110,95 +74,8 @@ export function Sentences() {
           item.vocabulary?.english.toLowerCase().includes(term) ||
           item.vocabulary?.polish.toLowerCase().includes(term)
         );
-      })
-      .map((item) => ({
-        id: item.id,
-        sentence_english: item.sentence_english,
-        sentence_polish: item.sentence_polish,
-        vocabulary_word: item.vocabulary ? `${item.vocabulary.polish} / ${item.vocabulary.english}` : 'Unknown',
-        category: item.vocabulary?.category?.name ?? 'Uncategorised',
-        created_at: item.created_at,
-      }));
+      });
   }, [sentences, selectedVocabulary, searchTerm]);
-
-  const openEdit = useCallback((id: string) => {
-    const item = sentences.find((entry) => entry.id === id);
-    if (!item) return;
-    setEditing({
-      id,
-      state: {
-        sentence_english: item.sentence_english,
-        sentence_polish: item.sentence_polish,
-      },
-    });
-  }, [sentences]);
-
-  const columns = useMemo<GridColDef[]>(
-    () => [
-      {
-        field: 'sentence_english',
-        headerName: 'English Sentence',
-        flex: 1,
-        minWidth: 200,
-        renderCell: (params) => <Typography fontWeight={600}>{params.value as string}</Typography>,
-      },
-      {
-        field: 'sentence_polish',
-        headerName: 'Polish Translation',
-        flex: 1,
-        minWidth: 200,
-        renderCell: (params) => <Typography color="text.secondary">{params.value as string}</Typography>,
-      },
-      {
-        field: 'vocabulary_word',
-        headerName: 'Related Word',
-        width: 180,
-        renderCell: ({ value }) => (
-          <Typography variant="body2" color="primary.light" fontWeight={500}>
-            {value as string}
-          </Typography>
-        ),
-      },
-      {
-        field: 'category',
-        headerName: 'Category',
-        width: 120,
-        renderCell: ({ value }) => (
-          <Typography variant="caption" color="text.secondary">
-            {value as string}
-          </Typography>
-        ),
-      },
-      {
-        field: 'created_at',
-        headerName: 'Created',
-        width: 120,
-        valueFormatter: ({ value }) => new Date(value as string).toLocaleDateString(),
-      },
-      {
-        field: 'actions',
-        headerName: 'Actions',
-        width: 100,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => (
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Edit sentence">
-              <IconButton size="small" onClick={() => openEdit(params.row.id)}>
-                <EditRoundedIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete sentence">
-              <IconButton size="small" color="error" onClick={() => setConfirmDelete(params.row.id)}>
-                <DeleteRoundedIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        ),
-      },
-    ],
-    [openEdit]
-  );
 
   const handleSaveEdit = async () => {
     if (!editing) return;
@@ -209,7 +86,7 @@ export function Sentences() {
         sentence_polish: state.sentence_polish,
       });
       setSentences((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
-      setFeedback({ type: 'success', message: 'Sentence updated successfully.' });
+      setFeedback({ type: 'success', message: 'Sentence updated.' });
       setEditing(null);
     } catch (error) {
       console.error(error);
@@ -230,6 +107,19 @@ export function Sentences() {
     }
   };
 
+  // Text-to-Speech
+  const speak = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Copy to Clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setFeedback({ type: 'success', message: 'Copied to clipboard.' });
+  };
+
   // Get vocabulary that have sentences
   const vocabularyWithSentences = useMemo(() => {
     const vocabIds = new Set(sentences.map(s => s.vocabulary_id));
@@ -237,145 +127,230 @@ export function Sentences() {
   }, [sentences, vocabulary]);
 
   return (
-    <Stack spacing={4}>
-      {feedback && (
-        <Alert severity={feedback.type} onClose={() => setFeedback(null)}>
-          {feedback.message}
-        </Alert>
-      )}
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Generated Sentences</h1>
+          <p className="text-muted-foreground">AI-generated context for your vocabulary.</p>
+        </div>
 
-      <ToolbarWrapper>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', md: 'center' }}>
-          <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AutoAwesomeRoundedIcon sx={{ color: 'primary.light' }} />
-              <Typography variant="h4" fontWeight={700}>
-                Generated Sentences
-              </Typography>
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              View and manage AI-generated sentence variations for your vocabulary.
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <BookRoundedIcon sx={{ color: 'text.secondary' }} />
-            <Typography variant="h6" fontWeight={600}>
-              {sentences.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              sentences
-            </Typography>
-          </Stack>
-        </Stack>
-      </ToolbarWrapper>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setClozeMode(!clozeMode)}
+            className={cn(
+              "border-white/5 hover:bg-white/5",
+              clozeMode && "bg-primary/10 text-primary border-primary/20"
+            )}
+          >
+            {clozeMode ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+            {clozeMode ? 'Cloze Mode Active' : 'Cloze Mode'}
+          </Button>
+        </div>
+      </div>
 
-      <ToolbarWrapper>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', md: 'center' }}>
-          <TextField
-            variant="outlined"
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <Input
             placeholder="Search sentences..."
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRoundedIcon sx={{ color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-            }}
-            fullWidth
-            sx={{ maxWidth: 400 }}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-card/50 border-white/5"
           />
-          <TextField
-            select
-            label="Filter by word"
+        </div>
+        <div className="relative w-full md:w-64">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <select
             value={selectedVocabulary}
-            onChange={(event) => setSelectedVocabulary(event.target.value)}
-            sx={{ minWidth: 200 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <FilterAltRoundedIcon sx={{ color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-            }}
+            onChange={(e) => setSelectedVocabulary(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-lg bg-card/50 border border-white/5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer"
           >
-            <MenuItem value="">All words</MenuItem>
+            <option value="">All words</option>
             {vocabularyWithSentences.map((vocab) => (
-              <MenuItem key={vocab.id} value={vocab.id}>
-                {vocab.polish} / {vocab.english}
-              </MenuItem>
+              <option key={vocab.id} value={vocab.id}>
+                {vocab.english}
+              </option>
             ))}
-          </TextField>
-        </Stack>
-      </ToolbarWrapper>
+          </select>
+        </div>
+      </div>
 
-      <GridWrapper sx={{ height: 520 }}>
-        <DataGrid
-          rows={filteredRows}
-          columns={columns}
-          loading={loading}
-          disableRowSelectionOnClick
-          sx={{
-            '& .MuiDataGrid-cell:focus': {
-              outline: 'none',
-            },
-          }}
-        />
-      </GridWrapper>
+      {/* Sentences List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-24 rounded-xl bg-card/50 animate-pulse" />
+          ))}
+        </div>
+      ) : filteredSentences.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+          <Sparkles className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium text-foreground">No sentences found</h3>
+          <p className="text-muted-foreground mt-1">Try adjusting your filters or generate new sentences.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredSentences.map((item) => (
+            <div
+              key={item.id}
+              className="group relative p-5 rounded-xl bg-card border border-white/5 hover:border-primary/20 hover:bg-card/80 transition-all duration-300"
+            >
+              <div className="flex flex-col md:flex-row gap-4 justify-between">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-start gap-3">
+                    <p className="text-lg font-medium text-foreground leading-relaxed">
+                      {clozeMode && item.vocabulary ? (
+                        <>
+                          {item.sentence_english.split(new RegExp(`(${item.vocabulary.english})`, 'gi')).map((part, i) =>
+                            part.toLowerCase() === item.vocabulary!.english.toLowerCase() ? (
+                              <span key={i} className="bg-primary/20 text-transparent rounded px-1 select-none">
+                                {part}
+                              </span>
+                            ) : (
+                              <span key={i}>{part}</span>
+                            )
+                          )}
+                        </>
+                      ) : (
+                        item.sentence_english
+                      )}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => speak(item.sentence_english)}
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-      <Dialog open={Boolean(editing)} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit sentence</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} mt={1}>
-            <TextField
-              label="English sentence"
+                  <p className="text-muted-foreground">
+                    {item.sentence_polish}
+                  </p>
+
+                  {item.vocabulary && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                        {item.vocabulary.english}
+                      </span>
+                      {item.vocabulary.category && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-muted-foreground">
+                          {item.vocabulary.category.name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity self-start">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(item.sentence_english)}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditing({
+                      id: item.id,
+                      state: {
+                        sentence_english: item.sentence_english,
+                        sentence_polish: item.sentence_polish
+                      }
+                    })}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setConfirmDelete(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title="Edit Sentence"
+      >
+        <div className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">English Sentence</label>
+            <Input
               value={editing?.state.sentence_english ?? ''}
-              onChange={(event) =>
-                setEditing((prev) =>
-                  prev ? { ...prev, state: { ...prev.state, sentence_english: event.target.value } } : prev
-                )
-              }
-              fullWidth
-              multiline
-              minRows={2}
+              onChange={(e) => setEditing(prev => prev ? { ...prev, state: { ...prev.state, sentence_english: e.target.value } } : null)}
+              className="bg-background"
             />
-            <TextField
-              label="Polish translation"
-              value={editing?.state.sentence_polish ?? ''}
-              onChange={(event) =>
-                setEditing((prev) =>
-                  prev ? { ...prev, state: { ...prev.state, sentence_polish: event.target.value } } : prev
-                )
-              }
-              fullWidth
-              multiline
-              minRows={2}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditing(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveEdit}>
-            Save changes
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
 
-      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>Delete sentence</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            This will permanently remove the sentence. Continue?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={() => confirmDelete && void handleDelete(confirmDelete)}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Stack>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Polish Translation</label>
+            <Input
+              value={editing?.state.sentence_polish ?? ''}
+              onChange={(e) => setEditing(prev => prev ? { ...prev, state: { ...prev.state, sentence_polish: e.target.value } } : null)}
+              className="bg-background"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete Sentence"
+      >
+        <div className="space-y-4 pt-2">
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this sentence? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && handleDelete(confirmDelete)}>
+              Delete Sentence
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className={cn(
+          "fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-bottom duration-300 flex items-center gap-3 z-50",
+          feedback.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+        )}>
+          {feedback.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <X className="h-5 w-5" />}
+          <p className="text-sm font-medium">{feedback.message}</p>
+          <button onClick={() => setFeedback(null)} className="ml-2 hover:opacity-70">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

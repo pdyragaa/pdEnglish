@@ -1,163 +1,93 @@
 import { create } from 'zustand';
-import type { Vocabulary, Review, ReviewSession, Language } from '../types';
+import { persist } from 'zustand/middleware';
+import type { Language, Flashcard, SessionSize } from '../types';
+
+interface SessionStats {
+  total: number;
+  completed: number;
+  again: number;
+  hard: number;
+  good: number;
+  easy: number;
+  streak: number;
+  maxStreak: number;
+  correct?: number; // Keeping for backward compatibility if needed, or remove
+  wrong?: number;   // Keeping for backward compatibility if needed, or remove
+}
+
+interface ReviewSessionState {
+  cards: Flashcard[];
+  currentIndex: number;
+  isFlipped: boolean;
+  sessionStats: SessionStats;
+  currentReviewStats: any; // Simplify or properly type if needed
+  selectedCategory: string;
+  sessionSize: SessionSize;
+  timestamp: string;
+  quizCards?: any[]; // Deprecated
+  selectedOption?: any; // Deprecated
+  showFeedback?: boolean; // Deprecated
+  isCorrect?: boolean; // Deprecated
+}
 
 interface VocabularyState {
-  // Current session state
-  currentSession: ReviewSession[];
-  currentIndex: number;
-  isBack: boolean;
-  
   // UI state
   selectedLanguage: Language;
   selectedCategory: string | null;
   isLoading: boolean;
   error: string | null;
-  
+
+  // Review session state
+  reviewSession: ReviewSessionState | null;
+
   // Actions
   setSelectedLanguage: (language: Language) => void;
   setSelectedCategory: (categoryId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
+
   // Review session actions
-  startReviewSession: (vocabulary: Vocabulary[], reviews: Review[]) => void;
-  nextCard: () => void;
-  previousCard: () => void;
-  flipCard: () => void;
-  rateCard: (quality: number) => void;
-  endSession: () => void;
-  
-  // Current card helpers
-  getCurrentCard: () => ReviewSession | null;
-  isLastCard: () => boolean;
-  isFirstCard: () => boolean;
-  getSessionProgress: () => { current: number; total: number };
+  setReviewSession: (session: ReviewSessionState) => void;
+  updateReviewSession: (updates: Partial<ReviewSessionState>) => void;
+  clearReviewSession: () => void;
 }
 
-export const useVocabularyStore = create<VocabularyState>((set, get) => ({
-  // Initial state
-  currentSession: [],
-  currentIndex: 0,
-  isBack: false,
-  selectedLanguage: 'pl',
-  selectedCategory: null,
-  isLoading: false,
-  error: null,
+export const useVocabularyStore = create<VocabularyState>()(
+  persist(
+    (set) => ({
+      // Initial state
+      selectedLanguage: 'pl',
+      selectedCategory: null,
+      isLoading: false,
+      error: null,
+      reviewSession: null,
 
-  // Basic setters
-  setSelectedLanguage: (language) => set({ selectedLanguage: language }),
-  setSelectedCategory: (categoryId) => set({ selectedCategory: categoryId }),
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
+      // Basic setters
+      setSelectedLanguage: (language) => set({ selectedLanguage: language }),
+      setSelectedCategory: (categoryId) => set({ selectedCategory: categoryId }),
+      setLoading: (loading) => set({ isLoading: loading }),
+      setError: (error) => set({ error }),
 
-  // Review session actions
-  startReviewSession: (vocabulary, reviews) => {
-    const session: ReviewSession[] = vocabulary.map(vocab => {
-      const review = reviews.find(r => r.vocabulary_id === vocab.id);
-      return {
-        vocabulary: vocab,
-        review: review || null,
-        isBack: false,
-        quality: undefined
-      };
-    });
-
-    // Shuffle the session
-    const shuffled = session.sort(() => Math.random() - 0.5);
-    
-    set({
-      currentSession: shuffled,
-      currentIndex: 0,
-      isBack: false,
-      error: null
-    });
-  },
-
-  nextCard: () => {
-    const state = get();
-    if (state.currentIndex < state.currentSession.length - 1) {
-      set({ 
-        currentIndex: state.currentIndex + 1,
-        isBack: false
-      });
+      // Review session actions
+      setReviewSession: (session) => set({ reviewSession: session as any }), // Temporary cast to avoid strict type checking during migration
+      updateReviewSession: (updates) =>
+        set((state) => ({
+          reviewSession: state.reviewSession
+            ? { ...state.reviewSession, ...updates }
+            : null,
+        })),
+      clearReviewSession: () => {
+        localStorage.removeItem('reviewSession');
+        set({ reviewSession: null });
+      },
+    }),
+    {
+      name: 'vocabulary-storage',
+      partialize: (state) => ({
+        reviewSession: state.reviewSession,
+        selectedLanguage: state.selectedLanguage,
+        selectedCategory: state.selectedCategory,
+      }),
     }
-  },
-
-  previousCard: () => {
-    const state = get();
-    if (state.currentIndex > 0) {
-      set({ 
-        currentIndex: state.currentIndex - 1,
-        isBack: false
-      });
-    }
-  },
-
-  flipCard: () => {
-    const state = get();
-    if (state.currentSession[state.currentIndex]) {
-      const updatedSession = [...state.currentSession];
-      updatedSession[state.currentIndex] = {
-        ...updatedSession[state.currentIndex],
-        isBack: !updatedSession[state.currentIndex].isBack
-      };
-      set({ currentSession: updatedSession });
-    }
-  },
-
-  rateCard: (quality) => {
-    const state = get();
-    const currentCard = state.currentSession[state.currentIndex];
-    
-    if (currentCard) {
-      const updatedSession = [...state.currentSession];
-      updatedSession[state.currentIndex] = {
-        ...currentCard,
-        quality
-      };
-      
-      set({ currentSession: updatedSession });
-      
-      // Auto-advance to next card
-      setTimeout(() => {
-        const newState = get();
-        if (newState.currentIndex < newState.currentSession.length - 1) {
-          newState.nextCard();
-        }
-      }, 500);
-    }
-  },
-
-  endSession: () => {
-    set({
-      currentSession: [],
-      currentIndex: 0,
-      isBack: false,
-      error: null
-    });
-  },
-
-  // Helper functions
-  getCurrentCard: () => {
-    const state = get();
-    return state.currentSession[state.currentIndex] || null;
-  },
-
-  isLastCard: () => {
-    const state = get();
-    return state.currentIndex >= state.currentSession.length - 1;
-  },
-
-  isFirstCard: () => {
-    const state = get();
-    return state.currentIndex === 0;
-  },
-
-  getSessionProgress: () => {
-    const state = get();
-    return {
-      current: state.currentIndex + 1,
-      total: state.currentSession.length
-    };
-  }
-}));
+  )
+);

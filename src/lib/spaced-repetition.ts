@@ -1,155 +1,176 @@
-import type { QualityRating } from '../types';
+import type { ReviewRating, Review, MasteryLevel } from '../types';
 
-export interface SM2Review {
-  easeFactor: number;
+export interface SM2State {
+  ease_factor: number;
   interval: number;
   repetitions: number;
-  nextReview: Date | null;
 }
 
-export interface SM2Result {
-  updatedReview: SM2Review;
-  shouldRepeat: boolean;
+export interface SM2Result extends SM2State {
+  next_review: string;
 }
 
 /**
- * SuperMemo 2 (SM-2) Algorithm Implementation
- * Based on the original algorithm by Piotr Wozniak
+ * SM-2 (SuperMemo 2) spaced repetition algorithm
+ * Based on the original SuperMemo algorithm with priority adjustment
  */
-export function calculateSM2(
-  currentReview: SM2Review,
-  quality: QualityRating
+export function calculateNextReview(
+  rating: ReviewRating,
+  currentState: SM2State | null,
+  priority: number = 2
 ): SM2Result {
-  let { easeFactor, interval, repetitions, nextReview } = currentReview;
-
-  // If quality is less than 3, reset repetitions and interval
+  const now = new Date();
+  
+  // Default values for new cards
+  let ease_factor = 2.5;
+  let interval = 0;
+  let repetitions = 0;
+  
+  // Use current state if available
+  if (currentState) {
+    ease_factor = currentState.ease_factor;
+    interval = currentState.interval;
+    repetitions = currentState.repetitions;
+  }
+  
+  // Rating values for SM-2
+  const ratingValues = {
+    again: 0,
+    hard: 3,
+    good: 4,
+    easy: 5
+  };
+  
+  const quality = ratingValues[rating];
+  
   if (quality < 3) {
+    // Again - reset the card
+    interval = 0;
     repetitions = 0;
-    interval = 1;
-    nextReview = new Date(Date.now() + 1 * 24 * 60 * 60 * 1000); // 1 day
+    ease_factor = Math.max(1.3, ease_factor - 0.2);
   } else {
-    // Update repetitions
-    repetitions += 1;
-
-    // Calculate new interval
-    if (repetitions === 1) {
+    // Hard, Good, or Easy
+    if (repetitions === 0) {
       interval = 1;
-    } else if (repetitions === 2) {
+    } else if (repetitions === 1) {
       interval = 6;
     } else {
-      interval = Math.round(interval * easeFactor);
+      interval = Math.round(interval * ease_factor);
     }
-
-    // Calculate next review date
-    const daysToAdd = interval;
-    nextReview = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
+    
+    repetitions += 1;
+    
+    // Adjust ease factor based on quality
+    ease_factor = ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    ease_factor = Math.max(1.3, ease_factor);
+  }
+  
+  // Adjust interval based on priority
+  let adjustedInterval = interval;
+  if (interval > 0) {
+    switch (priority) {
+      case 3: // Very important - more frequent reviews
+        adjustedInterval = Math.round(interval * 0.7); // 30% reduction
+        break;
+      case 1: // Less important - less frequent reviews
+        adjustedInterval = Math.round(interval * 1.3); // 30% increase
+        break;
+      case 2: // Standard importance - no adjustment
+      default:
+        adjustedInterval = interval;
+        break;
+    }
   }
 
-  // Update ease factor
-  easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-
-  // Minimum ease factor is 1.3
-  if (easeFactor < 1.3) {
-    easeFactor = 1.3;
-  }
-
+  // Calculate next review date
+  const nextReview = new Date(now);
+  nextReview.setDate(nextReview.getDate() + adjustedInterval);
+  
   return {
-    updatedReview: {
-      easeFactor: Math.round(easeFactor * 100) / 100, // Round to 2 decimal places
-      interval,
-      repetitions,
-      nextReview
-    },
-    shouldRepeat: quality < 4
+    ease_factor: Math.round(ease_factor * 100) / 100, // Round to 2 decimal places
+    interval: adjustedInterval,
+    repetitions,
+    next_review: nextReview.toISOString()
   };
 }
 
 /**
- * Get initial review settings for new vocabulary
+ * Get the rating display name
  */
-export function getInitialReview(): SM2Review {
-  return {
-    easeFactor: 2.5,
-    interval: 0,
-    repetitions: 0,
-    nextReview: null
+export function getRatingDisplayName(rating: ReviewRating): string {
+  const names = {
+    again: 'Again',
+    hard: 'Hard', 
+    good: 'Good',
+    easy: 'Easy'
   };
+  return names[rating];
 }
 
 /**
- * Get quality rating description
+ * Get the rating color for UI
  */
-export function getQualityDescription(quality: QualityRating): string {
+export function getRatingColor(rating: ReviewRating): 'error' | 'warning' | 'success' | 'info' {
+  const colors = {
+    again: 'error' as const,
+    hard: 'warning' as const,
+    good: 'success' as const,
+    easy: 'info' as const
+  };
+  return colors[rating];
+}
+
+/**
+ * Get the rating description
+ */
+export function getRatingDescription(rating: ReviewRating): string {
   const descriptions = {
-    0: 'Complete blackout - I don\'t remember this at all',
-    1: 'Incorrect response - I recalled it with serious difficulty',
-    2: 'Incorrect response - I recalled it with serious difficulty',
-    3: 'Correct response - I recalled it with serious difficulty',
-    4: 'Correct response - I recalled it with slight difficulty',
-    5: 'Perfect response - I recalled it without any difficulty'
+    again: 'Forgot it completely',
+    hard: 'Remembered with difficulty',
+    good: 'Remembered correctly',
+    easy: 'Remembered perfectly'
   };
-  return descriptions[quality];
+  return descriptions[rating];
 }
 
 /**
- * Get quality button text for UI
+ * Check if a review is due based on next_review time
  */
-export function getQualityButtonText(quality: QualityRating): string {
-  const buttons = {
-    0: 'Again',
-    1: 'Hard',
-    2: 'Hard',
-    3: 'Good',
-    4: 'Good',
-    5: 'Easy'
-  };
-  return buttons[quality];
+export function isReviewDue(nextReview: string | null): boolean {
+  if (!nextReview) return true;
+  return new Date(nextReview) <= new Date();
 }
 
 /**
- * Calculate review statistics
+ * Categorize vocabulary mastery level based on review data
  */
-export interface ReviewStats {
-  dueToday: number;
-  dueThisWeek: number;
-  total: number;
-  mastered: number; // interval >= 30 days
-  learning: number; // interval < 7 days
+export function getMasteryLevel(review: Review | null): MasteryLevel {
+  if (!review) return 'new';
+  
+  const { ease_factor, repetitions } = review;
+  
+  if (ease_factor >= 2.5 && repetitions >= 3) return 'known';
+  if (ease_factor < 2.0 && repetitions > 0) return 'difficult';
+  if (repetitions >= 1 && repetitions <= 2) return 'learning';
+  
+  return 'new';
 }
 
-export function calculateReviewStats(reviews: Array<{ interval: number; next_review: string | null }>): ReviewStats {
+/**
+ * Format next review time in human-readable format
+ */
+export function formatNextReviewTime(nextReview: string | null): string {
+  if (!nextReview) return 'Ready now';
+  
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  let dueToday = 0;
-  let dueThisWeek = 0;
-  let mastered = 0;
-  let learning = 0;
-
-  reviews.forEach(review => {
-    if (review.next_review) {
-      const nextReview = new Date(review.next_review);
-      
-      if (nextReview <= now) {
-        dueToday++;
-      } else if (nextReview <= weekFromNow) {
-        dueThisWeek++;
-      }
-    }
-
-    if (review.interval >= 30) {
-      mastered++;
-    } else if (review.interval < 7 && review.interval > 0) {
-      learning++;
-    }
-  });
-
-  return {
-    dueToday,
-    dueThisWeek,
-    total: reviews.length,
-    mastered,
-    learning
-  };
+  const reviewDate = new Date(nextReview);
+  const diffMs = reviewDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return 'Overdue';
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays < 7) return `${diffDays} days`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks`;
+  return `${Math.floor(diffDays / 30)} months`;
 }

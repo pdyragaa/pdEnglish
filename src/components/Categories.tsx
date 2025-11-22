@@ -1,40 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  Skeleton,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import EditRoundedIcon from '@mui/icons-material/EditRounded';
-import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
-import FolderSpecialRoundedIcon from '@mui/icons-material/FolderSpecialRounded';
-import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
-import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
-
+  Folder,
+  Plus,
+  Edit2,
+  Trash2,
+  GripVertical,
+  CheckCircle2,
+  X
+} from 'lucide-react';
 import { db } from '../lib/supabase';
+import { useTokenTracker } from '../hooks/useTokenTracker';
 import type { Category } from '../types';
-
-const Container = styled(Box)({
-  borderRadius: 24,
-  border: '1px solid rgba(255,255,255,0.05)',
-  backgroundColor: 'rgba(20,24,32,0.75)',
-  overflow: 'hidden',
-});
+import { Button } from './ui/Button';
+import { Card } from './ui/Card';
+import { Input } from './ui/Input';
+import { Modal } from './ui/Modal';
+import { cn } from '../lib/utils';
 
 interface EditingState {
   id: string;
@@ -49,6 +30,9 @@ export function Categories() {
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Token tracking
+  const { tokenUsage, formatTokens } = useTokenTracker();
 
   useEffect(() => {
     const load = async () => {
@@ -68,7 +52,7 @@ export function Categories() {
   }, []);
 
   const colorPalette = useMemo(
-    () => ['#3FD6C1', '#4C82FB', '#8E97A7', '#F2994A', '#56CCF2', '#9B51E0', '#6FCF97'],
+    () => ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#06b6d4', '#10b981', '#eab308'],
     []
   );
 
@@ -115,173 +99,198 @@ export function Categories() {
   };
 
   return (
-    <Stack spacing={3}>
-      {feedback && (
-        <Alert severity={feedback.type} onClose={() => setFeedback(null)}>
-          {feedback.message}
-        </Alert>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Category Library</h1>
+          <p className="text-muted-foreground">Organize your vocabulary into thematic collections.</p>
+        </div>
+
+        {/* Token Usage Widget (Minimalist) */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">API Usage:</p>
+            <p className="text-sm font-mono font-medium text-primary">
+              {formatTokens(tokenUsage.totalTokens)} tokens
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Add Section */}
+      <Card className="p-1 bg-card/50 backdrop-blur-sm border-white/5">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Folder className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Input
+              placeholder="Create a new category..."
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="pl-10 border-0 bg-transparent focus-visible:ring-0 h-12"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            />
+          </div>
+          <Button
+            onClick={handleCreate}
+            disabled={!newName.trim()}
+            className="h-12 px-6 rounded-lg"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add
+          </Button>
+        </div>
+      </Card>
+
+      {/* Categories Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-32 rounded-xl bg-card/50 animate-pulse" />
+          ))}
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+          <Folder className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium text-foreground">No categories yet</h3>
+          <p className="text-muted-foreground mt-1">Create your first category to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.map((category) => (
+            <div
+              key={category.id}
+              className="group relative p-5 rounded-xl bg-card border border-white/5 hover:border-primary/20 hover:bg-card/80 transition-all duration-300"
+            >
+              {/* Drag Handle (Visual Only for now) */}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground">
+                <GripVertical className="h-4 w-4" />
+              </div>
+
+              <div className="pl-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Folder className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{category.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Created {new Date(category.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(category)}>
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(category.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Visual Mastery Progress (Mocked for now as per plan) */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Mastery</span>
+                    <span className="font-medium text-primary">0%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-[0%] rounded-full" />
+                  </div>
+                </div>
+
+                {/* Quick Add Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs h-8 border-white/5 hover:bg-white/5 hover:text-primary"
+                >
+                  <Plus className="h-3 w-3 mr-2" />
+                  Add word to {category.name}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      <Container>
-        <Box sx={{ p: { xs: 2, sm: 3 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }}>
-            <Stack spacing={0.5} sx={{ flexGrow: 1 }}>
-              <Typography variant="h4" fontWeight={700}>
-                Category library
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Group vocabulary thematically to accelerate recall.
-              </Typography>
-            </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} width={{ xs: '100%', sm: 'auto' }}>
-              <TextField
-                fullWidth
-                placeholder="Category name"
-                value={newName}
-                onChange={(event) => setNewName(event.target.value)}
-                InputProps={{ startAdornment: <CategoryRoundedIcon sx={{ mr: 1, color: 'text.secondary' }} /> }}
-              />
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={handleCreate}
-                disabled={!newName.trim()}
-              >
-                Add category
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-        <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
-          {isLoading ? (
-            <Stack spacing={2}>
-              {[...Array(4)].map((_, index) => (
-                <Skeleton key={index} variant="rounded" height={64} />
-              ))}
-            </Stack>
-          ) : categories.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center' }}>
-              <PaletteRoundedIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-              <Typography variant="h6" sx={{ mt: 2 }}>
-                No categories yet
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Create your first category to organise vocabulary.
-              </Typography>
-            </Box>
-          ) : (
-            <List disablePadding>
-              {categories.map((category, index) => (
-                <Box key={category.id}>
-                  <ListItem
-                    secondaryAction={
-                      <Stack direction="row" spacing={1}>
-                        <IconButton onClick={() => openEdit(category)}>
-                          <EditRoundedIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton color="error" onClick={() => setConfirmDelete(category.id)}>
-                          <DeleteRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    }
-                    sx={{
-                      px: 2,
-                      py: 1.5,
-                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' },
-                    }}
-                  >
-                    <ListItemAvatar>
-                      <Box
-                        sx={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: '14px',
-                          backgroundColor: 'rgba(63,214,193,0.15)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <FolderSpecialRoundedIcon sx={{ color: 'primary.main' }} />
-                      </Box>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle1" fontWeight={600}>
-                          {category.name}
-                        </Typography>
-                      }
-                      secondary={
-                        <Typography variant="caption" color="text.secondary">
-                          {index + 1} · created {new Date(category.created_at).toLocaleDateString()}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                  <Divider component="li" sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-                </Box>
-              ))}
-            </List>
-          )}
-        </Box>
-      </Container>
-
-      <Dialog open={Boolean(editing)} onClose={() => setEditing(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Edit category</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} mt={1}>
-            <TextField
-              label="Category name"
+      {/* Edit Modal */}
+      <Modal
+        isOpen={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title="Edit Category"
+      >
+        <div className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Category Name</label>
+            <Input
               value={editing?.name ?? ''}
-              onChange={(event) => setEditing((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
-              autoFocus
+              onChange={(e) => setEditing(prev => prev ? { ...prev, name: e.target.value } : null)}
+              placeholder="Enter category name"
             />
-            <Stack spacing={1}>
-              <Typography variant="caption" color="text.secondary">
-                Accent colour
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {colorPalette.map((color) => (
-                  <Box
-                    key={color}
-                    onClick={() => setEditing((prev) => (prev ? { ...prev, color } : prev))}
-                    sx={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      cursor: 'pointer',
-                      border: editing?.color === color ? '3px solid #fff' : '3px solid transparent',
-                    }}
-                  />
-                ))}
-              </Stack>
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditing(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>
-            Save changes
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </div>
 
-      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>Remove category</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            Are you sure you want to remove this category? Vocabulary will remain but lose this grouping.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={() => confirmDelete && void handleDelete(confirmDelete)}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Stack>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Accent Color</label>
+            <div className="flex flex-wrap gap-2">
+              {colorPalette.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setEditing(prev => prev ? { ...prev, color } : null)}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition-all",
+                    editing?.color === color ? "ring-2 ring-white ring-offset-2 ring-offset-background scale-110" : "hover:scale-105"
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={handleSave}>Save Changes</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete Category"
+      >
+        <div className="space-y-4 pt-2">
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this category? The vocabulary words will remain but will be uncategorized.
+          </p>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && handleDelete(confirmDelete)}>
+              Delete Category
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className={cn(
+          "fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg border animate-in slide-in-from-bottom duration-300 flex items-center gap-3 z-50",
+          feedback.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+        )}>
+          {feedback.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <X className="h-5 w-5" />}
+          <p className="text-sm font-medium">{feedback.message}</p>
+          <button onClick={() => setFeedback(null)} className="ml-2 hover:opacity-70">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

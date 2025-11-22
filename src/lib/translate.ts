@@ -1,10 +1,16 @@
-export async function translateText(text: string, source: 'pl' | 'en', target: 'pl' | 'en'): Promise<string> {
+import type { TranslationResult } from '../types';
+import { generateTranslationAlternatives } from './deepseek';
+
+export async function translateText(text: string, source: 'pl' | 'en', target: 'pl' | 'en'): Promise<TranslationResult> {
   if (!text.trim()) {
     throw new Error('Text cannot be empty');
   }
 
   if (source === target) {
-    return text;
+    return {
+      main: text,
+      alternatives: []
+    };
   }
 
   try {
@@ -29,7 +35,21 @@ export async function translateText(text: string, source: 'pl' | 'en', target: '
     }
 
     const data = await response.json();
-    return data.translatedText;
+    const mainTranslation = data.translatedText || data.main;
+
+    // Generate alternatives asynchronously (don't block the main translation)
+    let alternatives: string[] = [];
+    try {
+      alternatives = await generateTranslationAlternatives(text, mainTranslation, source, target);
+    } catch (altError) {
+      console.warn('Failed to generate translation alternatives:', altError);
+      // Continue without alternatives - don't break the translation flow
+    }
+
+    return {
+      main: mainTranslation,
+      alternatives
+    };
 
   } catch (error) {
     console.error('Translation error:', error);
@@ -37,10 +57,10 @@ export async function translateText(text: string, source: 'pl' | 'en', target: '
   }
 }
 
-export async function translatePolishToEnglish(text: string): Promise<string> {
+export async function translatePolishToEnglish(text: string): Promise<TranslationResult> {
   return translateText(text, 'pl', 'en');
 }
 
-export async function translateEnglishToPolish(text: string): Promise<string> {
+export async function translateEnglishToPolish(text: string): Promise<TranslationResult> {
   return translateText(text, 'en', 'pl');
 }

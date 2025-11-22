@@ -31,7 +31,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTimeRounded';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
 
 import { db } from '../lib/supabase';
-import { backfillMissingReviews, getReviewStats } from '../lib/backfill-reviews';
 import type { Vocabulary } from '../types';
 
 const quickActions = [
@@ -109,8 +108,6 @@ export function Dashboard() {
   });
   const [recentWords, setRecentWords] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -119,12 +116,12 @@ export function Dashboard() {
         const [vocabulary, categories, reviewStats] = await Promise.all([
           db.vocabulary.getAll(),
           db.categories.getAll(),
-          getReviewStats(),
+          db.reviews.getStats(),
         ]);
 
         const today = new Date().toDateString();
         const wordsToday = vocabulary.filter(
-          (word) => new Date(word.created_at).toDateString() === today
+          (word: Vocabulary) => new Date(word.created_at).toDateString() === today
         ).length;
 
         setStats({
@@ -132,8 +129,8 @@ export function Dashboard() {
           totalCategories: categories.length,
           wordsToday,
           practiceStreak: Math.min(7, Math.floor(vocabulary.length / 15)),
-          reviewsDue: reviewStats.reviewsDue,
-          missingReviews: reviewStats.missingReviews,
+          reviewsDue: reviewStats.total || 0,
+          missingReviews: 0,
         });
 
         setRecentWords(vocabulary.slice(0, 5));
@@ -144,36 +141,6 @@ export function Dashboard() {
 
     void load();
   }, []);
-
-  const handleSyncPracticeSystem = async () => {
-    setSyncing(true);
-    setSyncMessage(null);
-    
-    try {
-      const result = await backfillMissingReviews();
-      
-      if (result.errors.length > 0) {
-        setSyncMessage(`Synced ${result.createdReviews} cards. ${result.errors.length} errors occurred.`);
-      } else {
-        setSyncMessage(`Successfully synced ${result.createdReviews} cards to practice system!`);
-      }
-      
-      // Reload stats
-      const reviewStats = await getReviewStats();
-      setStats(prev => ({
-        ...prev,
-        reviewsDue: reviewStats.reviewsDue,
-        missingReviews: reviewStats.missingReviews,
-      }));
-      
-      setTimeout(() => setSyncMessage(null), 5000);
-    } catch (error) {
-      setSyncMessage(`Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setTimeout(() => setSyncMessage(null), 5000);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const progressItems = useMemo(
     () => [
@@ -283,102 +250,54 @@ export function Dashboard() {
         </Stack>
       </HeroGradient>
 
-      {/* Sync Practice System */}
-      {stats.missingReviews > 0 && (
-        <Card sx={{ border: '1px solid rgba(255,193,7,0.3)', bgcolor: 'rgba(255,193,7,0.05)' }}>
-          <CardContent sx={{ p: 3 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Stack spacing={1}>
-                <Typography variant="h6" fontWeight={600} color="warning.main">
-                  Practice System Sync Needed
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {stats.missingReviews} vocabulary items need to be synced with the practice system.
-                </Typography>
-              </Stack>
-              <Button
-                variant="contained"
-                color="warning"
-                onClick={handleSyncPracticeSystem}
-                disabled={syncing}
-                startIcon={syncing ? <AutoAwesomeIcon /> : <PsychologyIcon />}
-              >
-                {syncing ? 'Syncing...' : 'Sync Practice System'}
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Sync Message */}
-      {syncMessage && (
-        <Card sx={{ 
-          border: syncMessage.includes('Successfully') 
-            ? '1px solid rgba(76,175,80,0.3)' 
-            : '1px solid rgba(244,67,54,0.3)',
-          bgcolor: syncMessage.includes('Successfully') 
-            ? 'rgba(76,175,80,0.05)' 
-            : 'rgba(244,67,54,0.05)'
-        }}>
-          <CardContent sx={{ p: 2 }}>
-            <Typography 
-              variant="body2" 
-              color={syncMessage.includes('Successfully') ? 'success.main' : 'error.main'}
-            >
-              {syncMessage}
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Statistics cards */}
       <Grid container spacing={2}>
         {loading
           ? Array.from({ length: 4 }).map((_, index) => (
-              <Grid key={index} item xs={12} sm={6} lg={3}>
-                <Skeleton variant="rounded" height={160} />
-              </Grid>
-            ))
+            <Grid key={index} item xs={12} sm={6} lg={3}>
+              <Skeleton variant="rounded" height={160} />
+            </Grid>
+          ))
           : [
-              {
-                label: 'Vocabulary depth',
-                value: stats.totalWords,
-                caption: 'Total words saved',
-              },
-              {
-                label: 'Words today',
-                value: stats.wordsToday,
-                caption: 'New entries added',
-              },
-              {
-                label: 'Categories curated',
-                value: stats.totalCategories,
-                caption: 'Thematic groups',
-              },
-              {
-                label: 'Streak',
-                value: stats.practiceStreak,
-                caption: 'Days in a row',
-              },
-            ].map((stat) => (
-              <Grid key={stat.label} item xs={12} sm={6} lg={3}>
-                <StatCard>
-                  <CardContent sx={{ p: 3 }}>
-                    <Stack spacing={1.5}>
-                      <Typography variant="overline" color="text.secondary">
-                        {stat.label}
-                      </Typography>
-                      <Typography variant="h4" fontWeight={700}>
-                        {stat.value}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {stat.caption}
-                      </Typography>
-                    </Stack>
-                  </CardContent>
-                </StatCard>
-              </Grid>
-            ))}
+            {
+              label: 'Vocabulary depth',
+              value: stats.totalWords,
+              caption: 'Total words saved',
+            },
+            {
+              label: 'Words today',
+              value: stats.wordsToday,
+              caption: 'New entries added',
+            },
+            {
+              label: 'Categories curated',
+              value: stats.totalCategories,
+              caption: 'Thematic groups',
+            },
+            {
+              label: 'Streak',
+              value: stats.practiceStreak,
+              caption: 'Days in a row',
+            },
+          ].map((stat) => (
+            <Grid key={stat.label} item xs={12} sm={6} lg={3}>
+              <StatCard>
+                <CardContent sx={{ p: 3 }}>
+                  <Stack spacing={1.5}>
+                    <Typography variant="overline" color="text.secondary">
+                      {stat.label}
+                    </Typography>
+                    <Typography variant="h4" fontWeight={700}>
+                      {stat.value}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {stat.caption}
+                    </Typography>
+                  </Stack>
+                </CardContent>
+              </StatCard>
+            </Grid>
+          ))}
       </Grid>
 
       {/* Quick actions */}

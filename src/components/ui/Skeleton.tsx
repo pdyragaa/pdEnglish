@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
 interface SkeletonProps {
@@ -24,62 +23,26 @@ export function Skeleton({
     circular: 'rounded-full',
   };
 
-  const animationVariants = {
-    pulse: {
-      animate: {
-        opacity: [0.5, 1, 0.5],
-      },
-      transition: {
-        duration: 1.5,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      },
-    },
-    wave: {
-      animate: {
-        backgroundPosition: ['200% 0', '-200% 0'],
-      },
-      transition: {
-        duration: 1.5,
-        repeat: Infinity,
-        ease: 'linear',
-      },
-    },
-    none: {},
+  const animationClasses = {
+    pulse: 'animate-pulse',
+    wave: 'animate-pulse',
+    none: '',
   };
 
   const style = {
     width: width || '100%',
     height: height || '1rem',
-    background: animation === 'wave' 
-      ? 'linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%)'
-      : undefined,
-    backgroundSize: animation === 'wave' ? '200% 100%' : undefined,
   };
 
-  if (animation === 'none') {
-    return (
-      <div
-        className={cn(
-          baseClasses,
-          variantClasses[variant],
-          className
-        )}
-        style={style}
-      />
-    );
-  }
-
   return (
-    <motion.div
+    <div
       className={cn(
         baseClasses,
         variantClasses[variant],
+        animationClasses[animation],
         className
       )}
       style={style}
-      variants={animationVariants[animation]}
-      animate="animate"
     />
   );
 }

@@ -1,14 +1,72 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
-    <title>pdenglish</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Learn English with AI-powered vocabulary and spaced repetition" />
+  <meta name="keywords" content="english, vocabulary, learning, ai, spaced repetition" />
+  <meta property="og:title" content="Vocabulary App - AI-Powered English Learning" />
+  <meta property="og:description" content="Learn English with AI-powered vocabulary and spaced repetition" />
+  <meta property="og:type" content="website" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/pwa-192x192.png" />
+  <title>Vocabulary App - AI-Powered English Learning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Plus+Jakarta+Sans:wght@200..800&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+  <div id="root">
+    <!-- Fallback content - if you see this, JavaScript is not loading -->
+    <div style="padding: 20px; background: #000; color: #fff; font-family: monospace; min-height: 100vh;">
+      <h1 style="color: #f87171;">⚠️ Loading...</h1>
+      <p>If you see this message for more than 3 seconds, JavaScript failed to load.</p>
+      <p style="margin-top: 20px; color: #60a5fa;">Possible issues:</p>
+      <ul style="color: #a1a1aa;">
+        <li>JavaScript is disabled in your browser</li>
+        <li>Network connection issue</li>
+        <li>Browser compatibility issue</li>
+        <li>Script loading error</li>
+      </ul>
+      <p style="margin-top: 20px;">Try:</p>
+      <ul style="color: #a1a1aa;">
+        <li>Refresh the page (Ctrl+R or Cmd+R)</li>
+        <li>Clear browser cache</li>
+        <li>Try a different browser</li>
+        <li>Check your internet connection</li>
+      </ul>
+      <div style="margin-top: 30px; padding: 15px; background: #1f2937; border-radius: 8px;">
+        <p style="color: #fbbf24; margin: 0;">Current URL: <span id="url-display"></span></p>
+        <script>document.getElementById('url-display').textContent = window.location.href;</script>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Mobile Debug Console - Remove in production -->
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
+
+  <script>
+    // Service Worker temporarily disabled for debugging
+    // if ('serviceWorker' in navigator) {
+    //   window.addEventListener('load', () => {
+    //     navigator.serviceWorker.register('/sw.js')
+    //       .then((registration) => {
+    //         console.log('SW registered: ', registration);
+    //       })
+    //       .catch((registrationError) => {
+    //         console.log('SW registration failed: ', registrationError);
+    //       });
+    //   });
+    // }
+  </script>
+</body>
+
 </html>
